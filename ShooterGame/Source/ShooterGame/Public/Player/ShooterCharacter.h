@@ -496,14 +496,24 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "Teleport")
 		float TeleportDistanceCM = 10;
 
+	/*Maximum distance of thw wall from the player to perform wall jump*/
+	UPROPERTY(EditDefaultsOnly, Category = "WallJump")
+		float MaximumWallDistance = 10;
+	/*Upward force applied to the player performing the wall jump*/
+	UPROPERTY(EditDefaultsOnly, Category = "WallJump")
+		float JumpPower = 10;
 
 public:
 
 	/*Player requests Teleport action*/
 	void RequestTeleport();
+	/*Player requests WallJump action*/
+	void RequestWallJump();
 
 	/*Teleport actor in forward direction*/
 	void Teleport();
+	/*Jump in opposite direction of a vertical surface*/
+	void WallJump();
 };
 
 

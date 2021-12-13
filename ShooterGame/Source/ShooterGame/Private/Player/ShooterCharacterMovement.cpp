@@ -92,15 +92,37 @@ void UShooterCharacterMovement::SetTriggeringTeleport(bool bTriggeringTeleport)
 	this->bTriggeringTeleport = bTriggeringTeleport;
 }
 
+bool UShooterCharacterMovement::GetTriggeringWallJump() const
+{
+	return bTriggeringWallJump;
+}
+
+void UShooterCharacterMovement::SetTriggeringWallJump(bool bTriggeringWallJump)
+{
+	this->bTriggeringWallJump = bTriggeringWallJump;
+}
+
 
 bool UShooterCharacterMovement::GetCanTeleport() const
 {
 	return bCanTeleport;
 }
 
-void UShooterCharacterMovement::SetCanTeleport(bool CanTeleport)
+void UShooterCharacterMovement::SetCanTeleport(bool bCanTeleport)
 {
-	bCanTeleport = CanTeleport;
+	this->bCanTeleport = bCanTeleport;
+}
+
+bool UShooterCharacterMovement::GetCanWallJump() const
+{
+	//TO DO: more checks of falling state, near wall, .....
+	
+	return bCanWallJump;
+}
+
+void UShooterCharacterMovement::SetCanWallJump(bool bCanWallJump)
+{
+	this->bCanWallJump = bCanWallJump;
 }
 
 

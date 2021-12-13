@@ -885,8 +885,9 @@ void AShooterCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerI
 	PlayerInputComponent->BindAction("RunToggle", IE_Pressed, this, &AShooterCharacter::OnStartRunningToggle);
 	PlayerInputComponent->BindAction("Run", IE_Released, this, &AShooterCharacter::OnStopRunning);
 
-	PlayerInputComponent->BindAction("Teleport", IE_Pressed, this, &AShooterCharacter::RequestTeleport);
 
+	PlayerInputComponent->BindAction("Teleport", IE_Pressed, this, &AShooterCharacter::RequestTeleport);
+	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &AShooterCharacter::RequestWallJump);
 }
 
 
@@ -1353,6 +1354,18 @@ void AShooterCharacter::RequestTeleport() {
 
 }
 
+void AShooterCharacter::RequestWallJump()
+{
+	AShooterPlayerController* MyPC = Cast<AShooterPlayerController>(Controller);
+	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
+
+	if (!MyPC || !CharMov)
+		return;
+	if (MyPC->IsGameInputAllowed() && CharMov->GetCanWallJump())
+		CharMov->SetTriggeringWallJump(true);
+}
+
+
 void AShooterCharacter::Teleport() {
 
 	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
@@ -1373,3 +1386,7 @@ void AShooterCharacter::Teleport() {
 
 }
 
+void AShooterCharacter::WallJump()
+{
+	UE_LOG(LogTemp, Warning, TEXT("Super Wall Jump!!!!!!!"));
+}

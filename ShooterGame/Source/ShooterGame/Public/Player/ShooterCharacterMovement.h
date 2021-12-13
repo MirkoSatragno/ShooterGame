@@ -14,11 +14,17 @@ class UShooterCharacterMovement : public UCharacterMovementComponent
 
 private:
 
-	/*Has actor requested a Teleport action?*/
+	/*Has the player requested a Teleport action?*/
 	bool bTriggeringTeleport;
+	/*Has the player requested a WallJump action?*/
+	bool bTriggeringWallJump;
 	
 	/*Teleport action current availability*/
 	bool bCanTeleport;
+	/*WallJump action current availability
+	*This is an additional parameter, different from the player state in space.
+	*See GetCanWallJump()*/
+	bool bCanWallJump;
 
 
 public:
@@ -37,11 +43,19 @@ public:
 	bool GetTriggeringTeleport() const;
 	/* Teleport request state setter*/
 	void SetTriggeringTeleport(bool bTriggeringTeleport);
+	/* WallJump request state getter*/
+	bool GetTriggeringWallJump() const;
+	/* WallJump request state setter*/
+	void SetTriggeringWallJump(bool bTriggeringWallJump);
 
 	/*Teleport action current availability getter*/
 	bool GetCanTeleport() const;
 	/*Teleport action current availability setter*/
-	void SetCanTeleport(bool CanTeleport);
+	void SetCanTeleport(bool bCanTeleport);
+	/*WallJump action current availability getter*/
+	bool GetCanWallJump() const;
+	/*WallJump action current availability setter*/
+	void SetCanWallJump(bool bCanWallJump);
 
 };
 
