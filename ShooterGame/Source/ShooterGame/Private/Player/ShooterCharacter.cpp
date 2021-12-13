@@ -884,6 +884,9 @@ void AShooterCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerI
 	PlayerInputComponent->BindAction("Run", IE_Pressed, this, &AShooterCharacter::OnStartRunning);
 	PlayerInputComponent->BindAction("RunToggle", IE_Pressed, this, &AShooterCharacter::OnStartRunningToggle);
 	PlayerInputComponent->BindAction("Run", IE_Released, this, &AShooterCharacter::OnStopRunning);
+
+	PlayerInputComponent->BindAction("Teleport", IE_Pressed, this, &AShooterCharacter::RequestTeleport);
+
 }
 
 
@@ -1324,3 +1327,49 @@ void AShooterCharacter::BuildPauseReplicationCheckPoints(TArray<FVector>& Releva
 	RelevancyCheckPoints.Add(FVector(BoundingBox.Max.X - XDiff, BoundingBox.Max.Y - YDiff, BoundingBox.Max.Z));
 	RelevancyCheckPoints.Add(BoundingBox.Max);
 }
+
+
+//////////////////////////////
+//Additional abilities part
+//////////////////////////////
+
+
+void AShooterCharacter::RequestTeleport() {
+
+	/**
+	* This is called when pushing teleport button.
+	* It simply updates ShooterCharacterMovement state requesting a Teleport action.
+	* Actual teleport movement is performed in "Teleport()"
+	*/
+
+	AShooterPlayerController* MyPC = Cast<AShooterPlayerController>(Controller);
+	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
+
+	if (!MyPC || !CharMov)
+		return;
+
+	if (MyPC->IsGameInputAllowed() && CharMov->GetCanTeleport())
+		CharMov->SetTriggeringTeleport(true);
+
+}
+
+void AShooterCharacter::Teleport() {
+
+	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
+
+	if (!CharMov || !CharMov->GetCanTeleport()) {
+		//UE_LOG(LogTemp, Warning, TEXT("Can't Teleport"));
+		return;
+	}
+
+	FVector OldPosition = GetActorLocation();
+
+	/**
+	* Teleport is performed by TeleportDistanceCM centimeters in forward direction,
+	* according to player's view direction. 
+	* Teleport movement is NOT limited on the z-plane.
+	*/
+	TeleportTo(OldPosition + Controller->GetControlRotation().Vector() * TeleportDistanceCM, GetActorRotation());
+
+}
+

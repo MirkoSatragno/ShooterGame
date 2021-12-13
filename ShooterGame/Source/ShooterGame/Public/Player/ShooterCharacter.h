@@ -485,6 +485,25 @@ protected:
 protected:
 	/** Returns Mesh1P subobject **/
 	FORCEINLINE USkeletalMeshComponent* GetMesh1P() const { return Mesh1P; }
+
+//////////////////////////////
+//Additional abilities part
+//////////////////////////////
+
+private:
+
+	/*Distance traveled with teleport action, measured in cm*/
+	UPROPERTY(EditDefaultsOnly, Category = "Teleport")
+		float TeleportDistanceCM = 10;
+
+
+public:
+
+	/*Player requests Teleport action*/
+	void RequestTeleport();
+
+	/*Teleport actor in forward direction*/
+	void Teleport();
 };
 
 
