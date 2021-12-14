@@ -29,6 +29,19 @@ private:
 
 public:
 
+	/*Maximum distance of thw wall from the player to perform wall jump*/
+	UPROPERTY(EditDefaultsOnly, Category = "WallJump")
+		float MaxWallDistance = 10;
+	/*Maximum character rotation towards the wall*/
+	UPROPERTY(EditDefaultsOnly, Category = "WallJump")
+		float MaxImpactAngle = 10;
+	/*Height of the collision point to be checked, relative to Player's center*/
+	UPROPERTY(EditDefaultsOnly, Category = "WallJump")
+		float RelativeCollisionHeight = 0;
+	/*Upward force applied to the player performing the wall jump*/
+	UPROPERTY(EditDefaultsOnly, Category = "WallJump")
+		float JumpPower = 10;
+
 	virtual float GetMaxSpeed() const override;
 
 	/**Locally performs the movement.*/
@@ -52,10 +65,13 @@ public:
 	bool GetCanTeleport() const;
 	/*Teleport action current availability setter*/
 	void SetCanTeleport(bool bCanTeleport);
-	/*WallJump action current availability getter*/
+	/*WallJump action current availability getter.
+	*It also checks if player's state alow this movement*/
 	bool GetCanWallJump() const;
 	/*WallJump action current availability setter*/
 	void SetCanWallJump(bool bCanWallJump);
+
+	bool IsWallInFrontOfPlayer() const;
 
 };
 
@@ -72,13 +88,14 @@ public:
 		FLAG_Reserved_2 = 0x08,	// Reserved for future use 
 		// Remaining bit masks are available for custom flags. 
 		FLAG_TriggeringTeleport = 0x10,
-		FLAG_Custom_1 = 0x20,
+		FLAG_TriggeringWallJump = 0x20,
 		FLAG_Custom_2 = 0x40,
 		FLAG_Custom_3 = 0x80,
 	};
 
 	/*Stores bTriggeringTeleport value*/
 	bool bSavedMove_TriggeringTeleport;
+	bool bSavedMove_TriggeringWallJump;
 
 	/* Clears SavedMove parameters */
 	void Clear() override;

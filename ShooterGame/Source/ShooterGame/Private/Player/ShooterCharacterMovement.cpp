@@ -10,7 +10,10 @@ UShooterCharacterMovement::UShooterCharacterMovement(const FObjectInitializer& O
 	: Super(ObjectInitializer)
 {
 	SetCanTeleport(true);
+	SetCanWallJump(true);
+
 	SetTriggeringTeleport(false);
+	SetTriggeringWallJump(false);
 }
 
 
@@ -42,6 +45,11 @@ void UShooterCharacterMovement::PerformMovement(float DeltaTime) {
 		SetTriggeringTeleport(false);
 	}
 
+	if (GetTriggeringWallJump()) {
+		ShooterCharacter->WallJump();
+		SetTriggeringWallJump(false);
+	}
+
 	Super::PerformMovement(DeltaTime);
 
 }
@@ -60,6 +68,11 @@ void UShooterCharacterMovement::UpdateFromCompressedFlags(uint8 Flags) {
 
 		if (TeleportFlag != 0)
 			ShooterCharacter->Teleport();
+
+		int8 WallJumpFlag = Flags & FSavedMove_Character_Upgraded::FLAG_TriggeringWallJump;
+
+		if (WallJumpFlag != 0)
+			ShooterCharacter->WallJump();
 	}
 
 }
@@ -115,9 +128,14 @@ void UShooterCharacterMovement::SetCanTeleport(bool bCanTeleport)
 
 bool UShooterCharacterMovement::GetCanWallJump() const
 {
-	//TO DO: more checks of falling state, near wall, .....
+	/** Two conditions are checked:
+	* first one is the boolean bCanWallJump, that can be set to false when necessary;
+	* second one is a check of the physical state of the player (is he falling, is he against a wall, etc.)*/
 	
-	return bCanWallJump;
+	if (!bCanWallJump)
+		return false;
+
+	return IsFalling() && IsWallInFrontOfPlayer();
 }
 
 void UShooterCharacterMovement::SetCanWallJump(bool bCanWallJump)
@@ -125,6 +143,44 @@ void UShooterCharacterMovement::SetCanWallJump(bool bCanWallJump)
 	this->bCanWallJump = bCanWallJump;
 }
 
+
+bool UShooterCharacterMovement::IsWallInFrontOfPlayer() const
+{
+	AShooterCharacter* ShooterCharacter = Cast<AShooterCharacter>(CharacterOwner);
+	if (!ShooterCharacter)
+		return false;
+	
+	/*For design's sake, the collision with a wall could be checked at lower height, like knees height*/
+	float HeightCorrection = FMath::Clamp(RelativeCollisionHeight, (-1) * ShooterCharacter->GetCapsuleComponent()->GetScaledCapsuleHalfHeight(), ShooterCharacter->GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
+	FVector StartLocation = ShooterCharacter->GetActorLocation() + HeightCorrection;
+	FVector Direction = ShooterCharacter->Controller->GetControlRotation().Vector().GetSafeNormal2D();
+	float PlayerCapsuleRadius = ShooterCharacter->GetCapsuleComponent()->GetScaledCapsuleRadius();
+	FVector EndLocation = StartLocation + Direction * (PlayerCapsuleRadius + MaxWallDistance);
+	
+	/*Raycast should not hit the character itself*/
+	FCollisionQueryParams TraceParams = FCollisionQueryParams(FName(TEXT("WallTrace")), true, ShooterCharacter);
+
+	/*Let's check for a collision in front of the player using a raycast*/
+	FHitResult HitDetails = FHitResult(EForceInit::ForceInit);
+	bool bIsHit = GetWorld()->LineTraceSingleByChannel(HitDetails, StartLocation, EndLocation, ECC_Visibility, TraceParams);
+
+	if (bIsHit) {
+		/*Angle between player direction and inverted hit object normal
+		* We want it to be lower than a custom threshold*/
+		float ImpactAngle = FMath::Abs(Direction.Rotation().Yaw - (HitDetails.Normal.Rotation().Yaw - 180));
+		/*If the angle is over 180, let's take its explementary value for a simpler MaxImpactAngle threshold comparison*/
+		if (180 < ImpactAngle)
+			ImpactAngle = 360 - ImpactAngle;
+
+		//UE_LOG(LogTemp, Warning, TEXT("%f %f %f"), Direction.Rotation().Yaw, HitDetails.Normal.Rotation().Yaw, ImpactAngle);
+
+		if(ImpactAngle < MaxImpactAngle)
+			return true;
+	}
+		
+
+	return false;
+}
 
 
 ////////////////////////////////
@@ -136,6 +192,7 @@ void FSavedMove_Character_Upgraded::Clear() {
 	FSavedMove_Character::Clear();
 
 	bSavedMove_TriggeringTeleport = false;
+	bSavedMove_TriggeringWallJump = false;
 }
 
 uint8 FSavedMove_Character_Upgraded::GetCompressedFlags() const {
@@ -144,6 +201,9 @@ uint8 FSavedMove_Character_Upgraded::GetCompressedFlags() const {
 
 	if (bSavedMove_TriggeringTeleport)
 		Flags |= FLAG_TriggeringTeleport;
+
+	if (bSavedMove_TriggeringWallJump)
+		Flags |= FLAG_TriggeringWallJump;
 
 	return Flags;
 }
@@ -156,6 +216,9 @@ bool FSavedMove_Character_Upgraded::CanCombineWith(const FSavedMovePtr& NewMove,
 	if (!NewMove_Upgraded || NewMove_Upgraded->bSavedMove_TriggeringTeleport)
 		return false;
 
+	if (NewMove_Upgraded->bSavedMove_TriggeringWallJump)
+		return false;
+
 	return FSavedMove_Character::CanCombineWith(NewMove, Character, MaxDelta);
 }
 
@@ -164,8 +227,11 @@ void FSavedMove_Character_Upgraded::SetMoveFor(ACharacter* Character, float InDe
 	FSavedMove_Character::SetMoveFor(Character, InDeltaTime, NewAccel, ClientData);
 
 	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(Character->GetCharacterMovement());
-	if (CharMov)
+	if (CharMov) {
 		bSavedMove_TriggeringTeleport = CharMov->GetTriggeringTeleport();
+		bSavedMove_TriggeringWallJump = CharMov->GetTriggeringWallJump();
+	}
+		
 }
 
 void FSavedMove_Character_Upgraded::PrepMoveFor(class ACharacter* Character)
@@ -173,8 +239,11 @@ void FSavedMove_Character_Upgraded::PrepMoveFor(class ACharacter* Character)
 	FSavedMove_Character::PrepMoveFor(Character);
 
 	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(Character->GetCharacterMovement());
-	if (CharMov)
+	if (CharMov) {
 		CharMov->SetTriggeringTeleport(bSavedMove_TriggeringTeleport);
+		CharMov->SetTriggeringWallJump(bSavedMove_TriggeringWallJump);
+	}
+
 }
 
 
