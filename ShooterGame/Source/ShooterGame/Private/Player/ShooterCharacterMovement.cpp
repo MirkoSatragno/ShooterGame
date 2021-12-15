@@ -14,6 +14,7 @@ UShooterCharacterMovement::UShooterCharacterMovement(const FObjectInitializer& O
 
 	SetTriggeringTeleport(false);
 	SetTriggeringWallJump(false);
+
 }
 
 
@@ -135,7 +136,7 @@ bool UShooterCharacterMovement::GetCanWallJump() const
 	if (!bCanWallJump)
 		return false;
 
-	return IsFalling() && IsWallInFrontOfPlayer();
+	return IsFalling() && IsWallInFrontOfPlayerValid() && !IsMovementConstraintToPlane();
 }
 
 void UShooterCharacterMovement::SetCanWallJump(bool bCanWallJump)
@@ -144,7 +145,7 @@ void UShooterCharacterMovement::SetCanWallJump(bool bCanWallJump)
 }
 
 
-bool UShooterCharacterMovement::IsWallInFrontOfPlayer() const
+bool UShooterCharacterMovement::IsWallInFrontOfPlayerValid() const
 {
 	AShooterCharacter* ShooterCharacter = Cast<AShooterCharacter>(CharacterOwner);
 	if (!ShooterCharacter)
@@ -172,16 +173,29 @@ bool UShooterCharacterMovement::IsWallInFrontOfPlayer() const
 		if (180 < ImpactAngle)
 			ImpactAngle = 360 - ImpactAngle;
 
-		//UE_LOG(LogTemp, Warning, TEXT("%f %f %f"), Direction.Rotation().Yaw, HitDetails.Normal.Rotation().Yaw, ImpactAngle);
-
-		if(ImpactAngle < MaxImpactAngle)
+		if (ImpactAngle < MaxImpactAngle)
 			return true;
+
 	}
 		
 
 	return false;
 }
 
+
+bool UShooterCharacterMovement::IsMovementConstraintToPlane() const 
+{
+	/*These checks are based on DoJump() checks*/
+	if (!Super::bConstrainToPlane || FMath::Abs(Super::PlaneConstraintNormal.Z) != 1.f)
+		return false;
+	
+	return true;
+}
+
+float UShooterCharacterMovement::GetResponseImpulseIntensity() const
+{
+	return ResponseImpulseIntensity;
+}
 
 ////////////////////////////////
 //FSavedMove_CharacterUpgraded 

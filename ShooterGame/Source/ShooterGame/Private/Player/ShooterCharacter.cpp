@@ -1382,11 +1382,20 @@ void AShooterCharacter::Teleport() {
 	* according to player's view direction. 
 	* Teleport movement is NOT limited on the z-plane.
 	*/
-	TeleportTo(OldPosition + Controller->GetControlRotation().Vector() * TeleportDistanceCM, GetActorRotation());
+	TeleportTo(OldPosition + Controller->GetControlRotation().Vector() * CharMov->TeleportDistance, GetActorRotation());
 
 }
 
 void AShooterCharacter::WallJump()
 {
-	UE_LOG(LogTemp, Warning, TEXT("Super Wall Jump!!!!!!!"));
+	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
+
+	if (!CharMov || !CharMov->GetCanWallJump())
+		return;
+	
+	/*The player jumps a little higher*/
+	CharMov->Velocity.Z = FMath::Max(CharMov->Velocity.Z, CharMov->JumpZVelocity * CharMov->JumpVelocityModifier);
+	/*Push the player away from thw wall*/
+	CharMov->AddImpulse(GetActorForwardVector() * (-1) * CharMov->GetResponseImpulseIntensity());
+	
 }

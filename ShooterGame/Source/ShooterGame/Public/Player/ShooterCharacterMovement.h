@@ -25,22 +25,33 @@ private:
 	*This is an additional parameter, different from the player state in space.
 	*See GetCanWallJump()*/
 	bool bCanWallJump;
+	
 
 
 public:
 
-	/*Maximum distance of thw wall from the player to perform wall jump*/
-	UPROPERTY(EditDefaultsOnly, Category = "WallJump")
+	/*Distance traveled with teleport action, measured in cm*/
+	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0", ClampMax = "100000"), Category = "Teleport")
+		float TeleportDistance = 1000;
+	
+
+	/*Maximum distance of the wall from the player to perform a wall jump*/
+	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0", ClampMax = "100000"), Category = "WallJump")
 		float MaxWallDistance = 10;
-	/*Maximum character rotation towards the wall*/
-	UPROPERTY(EditDefaultsOnly, Category = "WallJump")
+	/*Maximum character rotation towards the wall to perform a wall jump*/
+	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0", ClampMax = "90"), Category = "WallJump")
 		float MaxImpactAngle = 10;
 	/*Height of the collision point to be checked, relative to Player's center*/
 	UPROPERTY(EditDefaultsOnly, Category = "WallJump")
 		float RelativeCollisionHeight = 0;
 	/*Upward force applied to the player performing the wall jump*/
-	UPROPERTY(EditDefaultsOnly, Category = "WallJump")
-		float JumpPower = 10;
+	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0", ClampMax = "100"), Category = "WallJump")
+		float JumpVelocityModifier = 1;
+	/*Force that pushes the actor away from the wall*/
+	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0", ClampMax = "10000000"), Category = "WallJump")
+		float ResponseImpulseIntensity = 20000;
+
+
 
 	virtual float GetMaxSpeed() const override;
 
@@ -71,7 +82,16 @@ public:
 	/*WallJump action current availability setter*/
 	void SetCanWallJump(bool bCanWallJump);
 
-	bool IsWallInFrontOfPlayer() const;
+	/**
+	* Checks wether:
+	* - the player is facing against a surface Normal direction
+	* - the surface is close enough to the player
+	*/
+	bool IsWallInFrontOfPlayerValid() const;
+	/*Checks constraints that may prevent moving along z axis*/
+	bool IsMovementConstraintToPlane() const;
+	/* Getter for impulse provided by walls when WallJumping*/
+	float GetResponseImpulseIntensity() const;
 
 };
 
@@ -95,6 +115,7 @@ public:
 
 	/*Stores bTriggeringTeleport value*/
 	bool bSavedMove_TriggeringTeleport;
+	/*Stores bTriggeringWallJump value*/
 	bool bSavedMove_TriggeringWallJump;
 
 	/* Clears SavedMove parameters */

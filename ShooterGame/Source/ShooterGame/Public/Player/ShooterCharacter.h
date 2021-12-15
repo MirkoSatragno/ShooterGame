@@ -490,14 +490,6 @@ protected:
 //Additional abilities part
 //////////////////////////////
 
-private:
-
-	/*Distance traveled with teleport action, measured in cm*/
-	UPROPERTY(EditDefaultsOnly, Category = "Teleport")
-		float TeleportDistanceCM = 10;
-
-	
-
 public:
 
 	/*Player requests Teleport action*/
