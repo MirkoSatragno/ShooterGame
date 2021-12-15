@@ -490,20 +490,17 @@ protected:
 //Additional abilities part
 //////////////////////////////
 
-private:
-
-	/*Distance traveled with teleport action, measured in cm*/
-	UPROPERTY(EditDefaultsOnly, Category = "Teleport")
-		float TeleportDistanceCM = 10;
-
-
 public:
 
 	/*Player requests Teleport action*/
 	void RequestTeleport();
+	/*Player requests WallJump action*/
+	void RequestWallJump();
 
 	/*Teleport actor in forward direction*/
 	void Teleport();
+	/*Jump in opposite direction of a vertical surface*/
+	void WallJump();
 };
 
 

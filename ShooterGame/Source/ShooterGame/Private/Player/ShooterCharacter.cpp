@@ -885,8 +885,9 @@ void AShooterCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerI
 	PlayerInputComponent->BindAction("RunToggle", IE_Pressed, this, &AShooterCharacter::OnStartRunningToggle);
 	PlayerInputComponent->BindAction("Run", IE_Released, this, &AShooterCharacter::OnStopRunning);
 
-	PlayerInputComponent->BindAction("Teleport", IE_Pressed, this, &AShooterCharacter::RequestTeleport);
 
+	PlayerInputComponent->BindAction("Teleport", IE_Pressed, this, &AShooterCharacter::RequestTeleport);
+	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &AShooterCharacter::RequestWallJump);
 }
 
 
@@ -1353,6 +1354,18 @@ void AShooterCharacter::RequestTeleport() {
 
 }
 
+void AShooterCharacter::RequestWallJump()
+{
+	AShooterPlayerController* MyPC = Cast<AShooterPlayerController>(Controller);
+	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
+
+	if (!MyPC || !CharMov)
+		return;
+	if (MyPC->IsGameInputAllowed() && CharMov->GetCanWallJump())
+		CharMov->SetTriggeringWallJump(true);
+}
+
+
 void AShooterCharacter::Teleport() {
 
 	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
@@ -1369,7 +1382,20 @@ void AShooterCharacter::Teleport() {
 	* according to player's view direction. 
 	* Teleport movement is NOT limited on the z-plane.
 	*/
-	TeleportTo(OldPosition + Controller->GetControlRotation().Vector() * TeleportDistanceCM, GetActorRotation());
+	TeleportTo(OldPosition + Controller->GetControlRotation().Vector() * CharMov->TeleportDistance, GetActorRotation());
 
 }
 
+void AShooterCharacter::WallJump()
+{
+	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
+
+	if (!CharMov || !CharMov->GetCanWallJump())
+		return;
+	
+	/*The player jumps a little higher*/
+	CharMov->Velocity.Z = FMath::Max(CharMov->Velocity.Z, CharMov->JumpZVelocity * CharMov->JumpVelocityModifier);
+	/*Push the player away from thw wall*/
+	CharMov->AddImpulse(GetActorForwardVector() * (-1) * CharMov->GetResponseImpulseIntensity());
+	
+}
