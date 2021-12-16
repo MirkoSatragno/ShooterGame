@@ -147,12 +147,29 @@ bool UShooterCharacterMovement::GetCanWallJump() const
 	if (!bCanWallJump)
 		return false;
 
-	return IsFalling() && IsWallInFrontOfPlayerValid() && !IsMovementConstraintToPlane();
+	return IsFalling() && IsWallInFrontOfPlayerValid();
 }
 
 void UShooterCharacterMovement::SetCanWallJump(bool bCanWallJump)
 {
 	this->bCanWallJump = bCanWallJump;
+}
+
+bool UShooterCharacterMovement::GetCanJetpackSprint() const 
+{
+	AShooterCharacter* ShooterCharacter = Cast<AShooterCharacter>(CharacterOwner);
+	if (!ShooterCharacter)
+		return false;
+	
+	if (!bCanWallJump)
+		return false;
+
+	return 0 < ShooterCharacter->GetJetpackEnergy();
+}
+
+void UShooterCharacterMovement::SetCanJetpackSrint(bool bCanJetpackSprint)
+{
+	this->bCanJetpackSprint = bCanJetpackSprint;
 }
 
 
@@ -191,16 +208,6 @@ bool UShooterCharacterMovement::IsWallInFrontOfPlayerValid() const
 		
 
 	return false;
-}
-
-
-bool UShooterCharacterMovement::IsMovementConstraintToPlane() const 
-{
-	/*These checks are based on DoJump() checks*/
-	if (!Super::bConstrainToPlane || FMath::Abs(Super::PlaneConstraintNormal.Z) != 1.f)
-		return false;
-	
-	return true;
 }
 
 

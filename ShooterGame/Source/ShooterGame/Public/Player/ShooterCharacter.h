@@ -489,6 +489,15 @@ protected:
 //////////////////////////////
 //Additional abilities part
 //////////////////////////////
+private:
+	
+	UPROPERTY(EditAnywhere, meta = (ClapMin = "0", ClapMax = "10000"), Category = "Jetpack")
+		double JetpackEnergy = 100;
+	UPROPERTY(EditAnywhere, meta = (ClapMin = "0", ClapMax = "1000"), Category = "Jetpack")
+		int32 JetpackEPS = 5;
+
+	bool bWasJetpackFlying;
+	double LastJetpackFlightTime;
 
 public:
 
@@ -507,6 +516,10 @@ public:
 	void WallJump();
 	/*Makes actor fly*/
 	void JetpackSprint();
+
+	float GetJetpackEnergy() const;
+	void SetJetpackEnergy(float JetpackEnergy);
+	float GetMaxJetpackEnergy() const;
 };
 
 

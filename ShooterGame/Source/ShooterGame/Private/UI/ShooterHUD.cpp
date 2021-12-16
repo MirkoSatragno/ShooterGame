@@ -99,6 +99,13 @@ AShooterHUD::AShooterHUD(const FObjectInitializer& ObjectInitializer) : Super(Ob
 	HUDLight = FColor(175,202,213,255);
 	HUDDark = FColor(110,124,131,255);
 	ShadowedFont.bEnableShadow = true;
+
+
+	/*Same background of the Health bar*/
+	JetpackEnergyBarBg = HealthBarBg;
+	static ConstructorHelpers::FObjectFinder<UTexture2D> JetpackIconTextureOb(TEXT("/Game/UI/HUD/JetpackIcon"));
+	JetpackEnergyIcon = UCanvas::MakeIcon(JetpackIconTextureOb.Object, 0, 0, 40, 40);
+	JetpackEnergyBar = HealthBar;
 }
 
 void AShooterHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -645,6 +652,7 @@ void AShooterHUD::DrawHUD()
 		{
 			DrawHealth();
 			DrawWeaponHUD();
+			DrawJetpackEnergy();
 		}
 		else
 		{
@@ -1283,3 +1291,35 @@ float AShooterHUD::DrawRecentlyKilledPlayer()
 }
 
 #undef LOCTEXT_NAMESPACE
+
+
+//////////////////////////////
+//Additional abilities part
+//////////////////////////////
+
+void AShooterHUD::DrawJetpackEnergy()
+{
+	AShooterCharacter* Character = Cast<AShooterCharacter>(GetOwningPawn());
+	if (!Character)
+		return;
+
+	/*I want the bar to be on the right-hand side*/
+	float BarPosX = Offset * ScaleUI;
+	float BarPosY = Canvas->ClipY *( 7.5f/10.0f ) - (Offset + JetpackEnergyBarBg.VL) * ScaleUI;
+	
+	//Canvas->SetDrawColor(FColor::White);
+	Canvas->DrawIcon(JetpackEnergyBarBg, BarPosX, BarPosY, ScaleUI);
+	Canvas->DrawIcon(JetpackEnergyIcon, BarPosX + Offset/2 * ScaleUI, BarPosY + (JetpackEnergyBarBg.VL - JetpackEnergyIcon.VL) / 2.0f * ScaleUI, ScaleUI);
+
+
+	float EnergyPercentage = FMath::Min(1.0f, (float)Character->GetJetpackEnergy() / (float)Character->GetMaxJetpackEnergy());
+
+	FVector2D EnergyBarPosition(BarPosX, BarPosY);
+	FVector2D EnergyBarSize = FVector2D(JetpackEnergyBar.UL * EnergyPercentage, JetpackEnergyBar.VL) * ScaleUI;
+	//FCanvasTileItem TileItem(FVector2D(BarPosX, BarPosY), HealthBar.Texture->Resource, FVector2D(JetpackEnergyBar.UL * EnergyPercentage, JetpackEnergyBar.VL) * ScaleUI, FLinearColor::White);
+	FCanvasTileItem TileItem(EnergyBarPosition, JetpackEnergyBar.Texture->Resource, EnergyBarSize, FLinearColor::White);
+	MakeUV(JetpackEnergyBar, TileItem.UV0, TileItem.UV1, JetpackEnergyBar.U, JetpackEnergyBar.V, JetpackEnergyBar.UL * EnergyPercentage, JetpackEnergyBar.VL);
+	TileItem.BlendMode = SE_BLEND_Translucent;
+	Canvas->DrawItem(TileItem);
+
+}

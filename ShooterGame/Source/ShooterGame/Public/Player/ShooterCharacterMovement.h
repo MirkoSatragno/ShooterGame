@@ -58,8 +58,8 @@ public:
 
 
 	/*Force that pushes the actor upward*/
-	UPROPERTY(EditDefaultsOnly, /*meta = (ClampMin = "0", ClampMax = "10000000"),*/ Category = "JetpackSprint")
-		float JetpackUpwardAcceleration = 30000;
+	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0", ClampMax = "100000"), Category = "JetpackSprint")
+		float JetpackUpwardAcceleration = 3000;
 
 
 
@@ -96,14 +96,16 @@ public:
 	/*WallJump action current availability setter*/
 	void SetCanWallJump(bool bCanWallJump);
 
+	bool GetCanJetpackSprint() const;
+
+	void SetCanJetpackSrint(bool bCanJetpackSprint);
+
 	/**
 	* Checks wether:
 	* - the player is facing against a surface Normal direction
 	* - the surface is close enough to the player
 	*/
 	bool IsWallInFrontOfPlayerValid() const;
-	/*Checks constraints that may prevent moving along z axis*/
-	bool IsMovementConstraintToPlane() const;
 
 };
 

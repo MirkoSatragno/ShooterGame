@@ -67,6 +67,8 @@ AShooterCharacter::AShooterCharacter(const FObjectInitializer& ObjectInitializer
 
 	BaseTurnRate = 45.f;
 	BaseLookUpRate = 45.f;
+
+	bWasJetpackFlying = false;
 }
 
 void AShooterCharacter::PostInitializeComponents()
@@ -1380,7 +1382,7 @@ void AShooterCharacter::RequestStartJetpackSprint()
 	if (!MyPC || !CharMov)
 		return;
 
-	if (MyPC->IsGameInputAllowed()) {
+	if (MyPC->IsGameInputAllowed() && CharMov->GetCanJetpackSprint()) {
 		CharMov->SetTriggeringJetpackSprint(true);
 		UE_LOG(LogTemp, Warning, TEXT("Requesting flying action"));
 	}
@@ -1446,6 +1448,35 @@ void AShooterCharacter::JetpackSprint() {
 
 	UE_LOG(LogTemp, Warning, TEXT("Jetpack Action"));
 
-	
+	double TimeNow = GetWorld()->TimeSeconds;
+
+	if (!bWasJetpackFlying) {
+		bWasJetpackFlying = true;
+		LastJetpackFlightTime = TimeNow;
+	}
+	else {
+		double DeltaTime = TimeNow - LastJetpackFlightTime;
+		float NewEnergy = FMath::Max(0.0f, GetJetpackEnergy() - (float)(JetpackEPS * DeltaTime));
+		SetJetpackEnergy(NewEnergy);
+		LastJetpackFlightTime = TimeNow;
+	}
+
 	CharMov->AddForce(FVector::UpVector * CharMov->JetpackUpwardAcceleration * CharMov->Mass);
+		
+}
+
+
+float AShooterCharacter::GetJetpackEnergy() const
+{
+	return JetpackEnergy;
+}
+
+void AShooterCharacter::SetJetpackEnergy(float JetpackEnergy)
+{
+	this->JetpackEnergy = JetpackEnergy;
+}
+
+float AShooterCharacter::GetMaxJetpackEnergy() const
+{
+	return GetClass()->GetDefaultObject<AShooterCharacter>()->JetpackEnergy;
 }

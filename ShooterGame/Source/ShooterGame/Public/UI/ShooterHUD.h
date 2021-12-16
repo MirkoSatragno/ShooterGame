@@ -392,4 +392,21 @@ protected:
 	*/
 	float ShowInfoItems(float YOffset, float TextScale);
 	
+
+//////////////////////////////
+//Additional abilities part
+//////////////////////////////
+
+private:
+	
+	UPROPERTY()
+		FCanvasIcon JetpackEnergyBarBg;
+	UPROPERTY()
+		FCanvasIcon JetpackEnergyBar;
+	UPROPERTY()
+		FCanvasIcon JetpackEnergyIcon;
+
+
+	void DrawJetpackEnergy();
+
 };
