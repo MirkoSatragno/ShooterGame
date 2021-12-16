@@ -14,6 +14,8 @@ UShooterCharacterMovement::UShooterCharacterMovement(const FObjectInitializer& O
 
 	SetTriggeringTeleport(false);
 	SetTriggeringWallJump(false);
+	SetTriggeringJetpackSprint(false);
+
 
 }
 
@@ -116,6 +118,15 @@ void UShooterCharacterMovement::SetTriggeringWallJump(bool bTriggeringWallJump)
 	this->bTriggeringWallJump = bTriggeringWallJump;
 }
 
+bool UShooterCharacterMovement::GetTriggeringJetpackSprint() const
+{
+	return bTriggeringJetpackSprint;
+}
+
+void UShooterCharacterMovement::SetTriggeringJetpackSprint(bool bTriggeringJetpackSprint)
+{
+	this->bTriggeringJetpackSprint = bTriggeringJetpackSprint;
+}
 
 bool UShooterCharacterMovement::GetCanTeleport() const
 {
@@ -192,10 +203,6 @@ bool UShooterCharacterMovement::IsMovementConstraintToPlane() const
 	return true;
 }
 
-float UShooterCharacterMovement::GetResponseImpulseIntensity() const
-{
-	return ResponseImpulseIntensity;
-}
 
 ////////////////////////////////
 //FSavedMove_CharacterUpgraded 

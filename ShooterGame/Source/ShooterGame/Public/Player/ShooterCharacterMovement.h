@@ -18,6 +18,8 @@ private:
 	bool bTriggeringTeleport;
 	/*Has the player requested a WallJump action?*/
 	bool bTriggeringWallJump;
+	/*Is the player requesting a JetpackSprint action?*/
+	bool bTriggeringJetpackSprint;
 	
 	/*Teleport action current availability*/
 	bool bCanTeleport;
@@ -25,6 +27,9 @@ private:
 	*This is an additional parameter, different from the player state in space.
 	*See GetCanWallJump()*/
 	bool bCanWallJump;
+	/*JetpackSprint action current availability*/
+	bool bCanJetpackSprint;
+
 	
 
 
@@ -52,6 +57,11 @@ public:
 		float ResponseImpulseIntensity = 20000;
 
 
+	/*Force that pushes the actor upward*/
+	UPROPERTY(EditDefaultsOnly, /*meta = (ClampMin = "0", ClampMax = "10000000"),*/ Category = "JetpackSprint")
+		float JetpackUpwardAcceleration = 30000;
+
+
 
 	virtual float GetMaxSpeed() const override;
 
@@ -71,6 +81,10 @@ public:
 	bool GetTriggeringWallJump() const;
 	/* WallJump request state setter*/
 	void SetTriggeringWallJump(bool bTriggeringWallJump);
+	/* JetpackSprint request state getter*/
+	bool GetTriggeringJetpackSprint() const;
+	/* JetpackSprint request state setter*/
+	void SetTriggeringJetpackSprint(bool bTriggeringJetpackSprint);
 
 	/*Teleport action current availability getter*/
 	bool GetCanTeleport() const;
@@ -90,8 +104,6 @@ public:
 	bool IsWallInFrontOfPlayerValid() const;
 	/*Checks constraints that may prevent moving along z axis*/
 	bool IsMovementConstraintToPlane() const;
-	/* Getter for impulse provided by walls when WallJumping*/
-	float GetResponseImpulseIntensity() const;
 
 };
 

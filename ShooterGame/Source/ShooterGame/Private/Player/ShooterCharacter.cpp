@@ -888,6 +888,8 @@ void AShooterCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerI
 
 	PlayerInputComponent->BindAction("Teleport", IE_Pressed, this, &AShooterCharacter::RequestTeleport);
 	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &AShooterCharacter::RequestWallJump);
+	PlayerInputComponent->BindAction("JetpackSprint", IE_Pressed, this, &AShooterCharacter::RequestStartJetpackSprint);
+	PlayerInputComponent->BindAction("JetpackSprint", IE_Released, this, &AShooterCharacter::RequestStopJetpackSprint);
 }
 
 
@@ -1138,6 +1140,11 @@ void AShooterCharacter::Tick(float DeltaSeconds)
 			DrawDebugSphere(GetWorld(), PointToTest, 10.0f, 8, FColor::Red);
 		}
 	}
+
+	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
+	if(CharMov->GetTriggeringJetpackSprint())
+		JetpackSprint();
+
 }
 
 void AShooterCharacter::BeginDestroy()
@@ -1365,6 +1372,36 @@ void AShooterCharacter::RequestWallJump()
 		CharMov->SetTriggeringWallJump(true);
 }
 
+void AShooterCharacter::RequestStartJetpackSprint()
+{
+	AShooterPlayerController* MyPC = Cast<AShooterPlayerController>(Controller);
+	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
+
+	if (!MyPC || !CharMov)
+		return;
+
+	if (MyPC->IsGameInputAllowed()) {
+		CharMov->SetTriggeringJetpackSprint(true);
+		UE_LOG(LogTemp, Warning, TEXT("Requesting flying action"));
+	}
+	
+
+}
+
+void AShooterCharacter::RequestStopJetpackSprint()
+{
+	AShooterPlayerController* MyPC = Cast<AShooterPlayerController>(Controller);
+	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
+
+	if (!MyPC || !CharMov)
+		return;
+
+	CharMov->SetTriggeringJetpackSprint(false);
+
+	UE_LOG(LogTemp, Warning, TEXT("Stopping flying action"));
+
+}
+
 
 void AShooterCharacter::Teleport() {
 
@@ -1396,6 +1433,19 @@ void AShooterCharacter::WallJump()
 	/*The player jumps a little higher*/
 	CharMov->Velocity.Z = FMath::Max(CharMov->Velocity.Z, CharMov->JumpZVelocity * CharMov->JumpVelocityModifier);
 	/*Push the player away from thw wall*/
-	CharMov->AddImpulse(GetActorForwardVector() * (-1) * CharMov->GetResponseImpulseIntensity());
+	CharMov->AddImpulse(GetActorForwardVector() * (-1) * CharMov->ResponseImpulseIntensity);
 	
+}
+
+void AShooterCharacter::JetpackSprint() {
+	
+	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
+
+	if (!CharMov)
+		return;
+
+	UE_LOG(LogTemp, Warning, TEXT("Jetpack Action"));
+
+	
+	CharMov->AddForce(FVector::UpVector * CharMov->JetpackUpwardAcceleration * CharMov->Mass);
 }

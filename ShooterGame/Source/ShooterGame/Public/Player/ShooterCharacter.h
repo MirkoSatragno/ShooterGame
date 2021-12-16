@@ -496,11 +496,17 @@ public:
 	void RequestTeleport();
 	/*Player requests WallJump action*/
 	void RequestWallJump();
+	/*Player requests Jetpack action*/
+	void RequestStartJetpackSprint();
+	/*Player requests stopping Jetpack action*/
+	void RequestStopJetpackSprint();
 
 	/*Teleport actor in forward direction*/
 	void Teleport();
 	/*Jump in opposite direction of a vertical surface*/
 	void WallJump();
+	/*Makes actor fly*/
+	void JetpackSprint();
 };
 
 
