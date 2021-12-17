@@ -79,6 +79,10 @@ public:
 	* Instead of the default FNetworkPredictionData_Client_Character*/
 	class FNetworkPredictionData_Client* GetPredictionData_Client() const override;
 
+
+	/**
+	* These action state getters and setters also enable/disable incompatible actions
+	**/
 	/* Teleport request state getter*/
 	bool GetTriggeringTeleport() const;
 	/* Teleport request state setter*/
@@ -91,6 +95,7 @@ public:
 	bool GetTriggeringJetpackSprint() const;
 	/* JetpackSprint request state setter*/
 	void SetTriggeringJetpackSprint(bool bTriggeringJetpackSprint);
+
 
 	/*Teleport action current availability getter*/
 	bool GetCanTeleport() const;
@@ -107,7 +112,7 @@ public:
 	void SetCanJetpackSprint(bool bCanJetpackSprint);
 
 	/**
-	* Checks wether:
+	* Checks whether:
 	* - the player is facing against a surface Normal direction
 	* - the surface is close enough to the player
 	*/

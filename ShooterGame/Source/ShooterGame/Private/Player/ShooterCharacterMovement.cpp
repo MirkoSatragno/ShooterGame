@@ -104,6 +104,9 @@ class FNetworkPredictionData_Client* UShooterCharacterMovement::GetPredictionDat
 }
 
 
+/**
+* These action state getters and setters also enable/disable incompatible actions
+**/
 bool UShooterCharacterMovement::GetTriggeringTeleport() const
 {
 	return bTriggeringTeleport;
@@ -132,6 +135,9 @@ bool UShooterCharacterMovement::GetTriggeringJetpackSprint() const
 void UShooterCharacterMovement::SetTriggeringJetpackSprint(bool bTriggeringJetpackSprint)
 {
 	this->bTriggeringJetpackSprint = bTriggeringJetpackSprint;
+
+	/*The player can't WallJump while JetpackSprinting*/
+	SetCanWallJump(!bTriggeringJetpackSprint);
 }
 
 bool UShooterCharacterMovement::GetCanTeleport() const
@@ -177,6 +183,7 @@ void UShooterCharacterMovement::SetCanJetpackSprint(bool bCanJetpackSprint)
 {
 	this->bCanJetpackSprint = bCanJetpackSprint;
 }
+
 
 
 bool UShooterCharacterMovement::IsWallInFrontOfPlayerValid() const

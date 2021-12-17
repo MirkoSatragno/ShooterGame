@@ -887,10 +887,10 @@ void AShooterCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerI
 	PlayerInputComponent->BindAction("Run", IE_Released, this, &AShooterCharacter::OnStopRunning);
 
 
-	PlayerInputComponent->BindAction("Teleport", IE_Pressed, this, &AShooterCharacter::RequestTeleport);
-	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &AShooterCharacter::RequestWallJump);
-	PlayerInputComponent->BindAction("JetpackSprint", IE_Pressed, this, &AShooterCharacter::RequestStartJetpackSprint);
-	PlayerInputComponent->BindAction("JetpackSprint", IE_Released, this, &AShooterCharacter::RequestStopJetpackSprint);
+	PlayerInputComponent->BindAction("Teleport", IE_Pressed, this, &AShooterCharacter::OnRequestTeleport);
+	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &AShooterCharacter::OnRequestWallJump);
+	PlayerInputComponent->BindAction("JetpackSprint", IE_Pressed, this, &AShooterCharacter::OnRequestStartJetpackSprint);
+	PlayerInputComponent->BindAction("JetpackSprint", IE_Released, this, &AShooterCharacter::OnRequestStopJetpackSprint);
 }
 
 
@@ -1200,6 +1200,8 @@ void AShooterCharacter::GetLifetimeReplicatedProps(TArray< FLifetimeProperty > &
 	// everyone
 	DOREPLIFETIME(AShooterCharacter, CurrentWeapon);
 	DOREPLIFETIME(AShooterCharacter, Health);
+
+	DOREPLIFETIME_CONDITION(AShooterCharacter, JetpackEnergy, COND_OwnerOnly);
 }
 
 bool AShooterCharacter::IsReplicationPausedForConnection(const FNetViewer& ConnectionOwnerNetViewer)
@@ -1339,13 +1341,7 @@ void AShooterCharacter::BuildPauseReplicationCheckPoints(TArray<FVector>& Releva
 //////////////////////////////
 
 
-void AShooterCharacter::RequestTeleport() {
-
-	/**
-	* This is called when pushing teleport button.
-	* It simply updates ShooterCharacterMovement state requesting a Teleport action.
-	* Actual teleport movement is performed in "Teleport()"
-	*/
+void AShooterCharacter::OnRequestTeleport() {
 
 	AShooterPlayerController* MyPC = Cast<AShooterPlayerController>(Controller);
 	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
@@ -1358,7 +1354,7 @@ void AShooterCharacter::RequestTeleport() {
 
 }
 
-void AShooterCharacter::RequestWallJump()
+void AShooterCharacter::OnRequestWallJump()
 {
 	AShooterPlayerController* MyPC = Cast<AShooterPlayerController>(Controller);
 	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
@@ -1369,7 +1365,7 @@ void AShooterCharacter::RequestWallJump()
 		CharMov->SetTriggeringWallJump(true);
 }
 
-void AShooterCharacter::RequestStartJetpackSprint()
+void AShooterCharacter::OnRequestStartJetpackSprint()
 {
 	AShooterPlayerController* MyPC = Cast<AShooterPlayerController>(Controller);
 	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
@@ -1382,7 +1378,7 @@ void AShooterCharacter::RequestStartJetpackSprint()
 
 }
 
-void AShooterCharacter::RequestStopJetpackSprint()
+void AShooterCharacter::OnRequestStopJetpackSprint()
 {
 	AShooterPlayerController* MyPC = Cast<AShooterPlayerController>(Controller);
 	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
@@ -1395,6 +1391,7 @@ void AShooterCharacter::RequestStopJetpackSprint()
 
 }
 
+////////////////////////////////////////////////////
 
 void AShooterCharacter::Teleport() {
 
@@ -1408,7 +1405,7 @@ void AShooterCharacter::Teleport() {
 	FVector OldPosition = GetActorLocation();
 
 	/**
-	* Teleport is performed by TeleportDistanceCM centimeters in forward direction,
+	* Teleport is performed by TeleportDistance centimeters in forward direction,
 	* according to player's view direction. 
 	* Teleport movement is NOT limited on the z-plane.
 	*/
