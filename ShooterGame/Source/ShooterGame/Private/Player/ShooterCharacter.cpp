@@ -68,7 +68,6 @@ AShooterCharacter::AShooterCharacter(const FObjectInitializer& ObjectInitializer
 	BaseTurnRate = 45.f;
 	BaseLookUpRate = 45.f;
 
-	bWasJetpackFlying = false;
 }
 
 void AShooterCharacter::PostInitializeComponents()
@@ -1143,10 +1142,6 @@ void AShooterCharacter::Tick(float DeltaSeconds)
 		}
 	}
 
-	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
-	if(CharMov->GetTriggeringJetpackSprint())
-		JetpackSprint();
-
 }
 
 void AShooterCharacter::BeginDestroy()
@@ -1382,11 +1377,8 @@ void AShooterCharacter::RequestStartJetpackSprint()
 	if (!MyPC || !CharMov)
 		return;
 
-	if (MyPC->IsGameInputAllowed() && CharMov->GetCanJetpackSprint()) {
+	if (MyPC->IsGameInputAllowed() && CharMov->GetCanJetpackSprint())
 		CharMov->SetTriggeringJetpackSprint(true);
-		UE_LOG(LogTemp, Warning, TEXT("Requesting flying action"));
-	}
-	
 
 }
 
@@ -1398,9 +1390,8 @@ void AShooterCharacter::RequestStopJetpackSprint()
 	if (!MyPC || !CharMov)
 		return;
 
-	CharMov->SetTriggeringJetpackSprint(false);
-
-	UE_LOG(LogTemp, Warning, TEXT("Stopping flying action"));
+	if (MyPC->IsGameInputAllowed())
+		CharMov->SetTriggeringJetpackSprint(false);
 
 }
 
@@ -1433,36 +1424,51 @@ void AShooterCharacter::WallJump()
 		return;
 	
 	/*The player jumps a little higher*/
-	CharMov->Velocity.Z = FMath::Max(CharMov->Velocity.Z, CharMov->JumpZVelocity * CharMov->JumpVelocityModifier);
+	CharMov->Velocity.Z = FMath::Max(CharMov->Velocity.Z, CharMov->JumpZVelocity * CharMov->WallJumpVelocityModifier);
 	/*Push the player away from thw wall*/
-	CharMov->AddImpulse(GetActorForwardVector() * (-1) * CharMov->ResponseImpulseIntensity);
+	CharMov->AddImpulse(GetActorForwardVector() * (-1) * CharMov->WallJumpResponseImpulseIntensity);
 	
 }
 
-void AShooterCharacter::JetpackSprint() {
-	
+void AShooterCharacter::JetpackTick(float DeltaTime)
+{
 	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
-
 	if (!CharMov)
 		return;
 
-	UE_LOG(LogTemp, Warning, TEXT("Jetpack Action"));
+	if (CharMov->GetTriggeringJetpackSprint()) {
+		if (0 < GetJetpackEnergy())
+			JetpackSprint(DeltaTime);
+		else
+			CharMov->SetTriggeringJetpackSprint(false);
+	} 
+	else 
+		if (GetJetpackEnergy() < GetMaxJetpackEnergy())
+			JetpackRecharge(DeltaTime);
 
-	double TimeNow = GetWorld()->TimeSeconds;
+}
 
-	if (!bWasJetpackFlying) {
-		bWasJetpackFlying = true;
-		LastJetpackFlightTime = TimeNow;
-	}
-	else {
-		double DeltaTime = TimeNow - LastJetpackFlightTime;
-		float NewEnergy = FMath::Max(0.0f, GetJetpackEnergy() - (float)(JetpackEPS * DeltaTime));
-		SetJetpackEnergy(NewEnergy);
-		LastJetpackFlightTime = TimeNow;
-	}
+void AShooterCharacter::JetpackSprint(float DeltaTime) {
+	
+	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
+	
+	if (!CharMov)
+		return;
 
+	float NewEnergy = FMath::Max(0.0f, GetJetpackEnergy() - (float)(CharMov->JetpackEPS * DeltaTime));
+	SetJetpackEnergy(NewEnergy);
 	CharMov->AddForce(FVector::UpVector * CharMov->JetpackUpwardAcceleration * CharMov->Mass);
 		
+}
+
+void AShooterCharacter::JetpackRecharge(float DeltaTime)
+{
+	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
+	if (!CharMov)
+		return;
+
+	float NewEnergy = FMath::Min(GetMaxJetpackEnergy(), GetJetpackEnergy() + (float)(CharMov->JetpackRechargeEPS * DeltaTime));
+	SetJetpackEnergy(NewEnergy);
 }
 
 
@@ -1473,7 +1479,7 @@ float AShooterCharacter::GetJetpackEnergy() const
 
 void AShooterCharacter::SetJetpackEnergy(float JetpackEnergy)
 {
-	this->JetpackEnergy = JetpackEnergy;
+	this->JetpackEnergy = FMath::Clamp(JetpackEnergy, 0.0f, GetMaxJetpackEnergy());
 }
 
 float AShooterCharacter::GetMaxJetpackEnergy() const

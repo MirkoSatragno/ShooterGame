@@ -42,24 +42,30 @@ public:
 
 	/*Maximum distance of the wall from the player to perform a wall jump*/
 	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0", ClampMax = "100000"), Category = "WallJump")
-		float MaxWallDistance = 10;
+		float WallJumpMaxWallDistance = 10;
 	/*Maximum character rotation towards the wall to perform a wall jump*/
 	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0", ClampMax = "90"), Category = "WallJump")
-		float MaxImpactAngle = 10;
+		float WallJumpMaxImpactAngle = 10;
 	/*Height of the collision point to be checked, relative to Player's center*/
 	UPROPERTY(EditDefaultsOnly, Category = "WallJump")
-		float RelativeCollisionHeight = 0;
+		float WallJumpRelativeCollisionHeight = 0;
 	/*Upward force applied to the player performing the wall jump*/
 	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0", ClampMax = "100"), Category = "WallJump")
-		float JumpVelocityModifier = 1;
+		float WallJumpVelocityModifier = 1;
 	/*Force that pushes the actor away from the wall*/
 	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0", ClampMax = "10000000"), Category = "WallJump")
-		float ResponseImpulseIntensity = 20000;
+		float WallJumpResponseImpulseIntensity = 20000;
 
 
 	/*Force that pushes the actor upward*/
 	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0", ClampMax = "100000"), Category = "JetpackSprint")
 		float JetpackUpwardAcceleration = 3000;
+	/*Jetpack Energy Per Second consumption*/
+	UPROPERTY(EditDefaultsOnly, meta = (ClapMin = "0", ClapMax = "1000"), Category = "Jetpack")
+		int32 JetpackEPS = 10;
+	/*Jetpack Energy Per Second recharge*/
+	UPROPERTY(EditDefaultsOnly, meta = (ClapMin = "0", ClapMax = "1000"), Category = "Jetpack")
+		int32 JetpackRechargeEPS = 10;
 
 
 
@@ -95,10 +101,10 @@ public:
 	bool GetCanWallJump() const;
 	/*WallJump action current availability setter*/
 	void SetCanWallJump(bool bCanWallJump);
-
+	/*JetpackSprint action current availability getter*/
 	bool GetCanJetpackSprint() const;
-
-	void SetCanJetpackSrint(bool bCanJetpackSprint);
+	/*JetpackSprint action current availability setter*/
+	void SetCanJetpackSprint(bool bCanJetpackSprint);
 
 	/**
 	* Checks wether:
@@ -123,7 +129,7 @@ public:
 		// Remaining bit masks are available for custom flags. 
 		FLAG_TriggeringTeleport = 0x10,
 		FLAG_TriggeringWallJump = 0x20,
-		FLAG_Custom_2 = 0x40,
+		FLAG_TriggeringJetpackSprint = 0x40,
 		FLAG_Custom_3 = 0x80,
 	};
 
@@ -131,6 +137,8 @@ public:
 	bool bSavedMove_TriggeringTeleport;
 	/*Stores bTriggeringWallJump value*/
 	bool bSavedMove_TriggeringWallJump;
+	/*Stores bTriggeringJetpackSprint value*/
+	bool bSavedMove_TriggeringJetpackSprint;
 
 	/* Clears SavedMove parameters */
 	void Clear() override;

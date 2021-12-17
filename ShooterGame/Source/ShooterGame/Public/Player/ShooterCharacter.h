@@ -493,11 +493,8 @@ private:
 	
 	UPROPERTY(EditAnywhere, meta = (ClapMin = "0", ClapMax = "10000"), Category = "Jetpack")
 		double JetpackEnergy = 100;
-	UPROPERTY(EditAnywhere, meta = (ClapMin = "0", ClapMax = "1000"), Category = "Jetpack")
-		int32 JetpackEPS = 5;
+	
 
-	bool bWasJetpackFlying;
-	double LastJetpackFlightTime;
 
 public:
 
@@ -514,8 +511,11 @@ public:
 	void Teleport();
 	/*Jump in opposite direction of a vertical surface*/
 	void WallJump();
-	/*Makes actor fly*/
-	void JetpackSprint();
+	void JetpackTick(float DeltaTime);
+	/*Makes actor sprint upward*/
+	void JetpackSprint(float DeltaTime);
+	/*Recharges actor's JetpackEnergy*/
+	void JetpackRecharge(float DeltaTime);
 
 	float GetJetpackEnergy() const;
 	void SetJetpackEnergy(float JetpackEnergy);
