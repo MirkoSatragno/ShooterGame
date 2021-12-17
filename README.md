@@ -3,6 +3,7 @@
 Added features:
 - Teleport
 - WallJump
+- JetpackSprint
 
 ## Teleport action description
 - The player can teleport 10 meters in forward direction.
@@ -18,3 +19,13 @@ Added features:
 - It is possible to perform multiple WallJumps in a row, if the level architectures allow it.
 - The player needs to align to the wall Normal direction in order to perform a WallJump.
 - The power of the jump, the wall distance and rotation limits, and other parameters can be customized in blueprint editor.
+
+## JetpackSprint action description
+- JetpackSprint action applies a constant force to the player as long as he presses J button.
+- When the JetpackSprint is working, energy is consumed at a customizable rate.
+- When the energy is over, the JetpackSprint action stops working.
+- When the JetpackSprint ability is not being used, the energy regenerates at a customizable rate.
+- The player can't WallJump when he is JetpackSprinting.
+- Falling after using JetpackSprint ability doesn't count as "still using the ability", thus energy does regenerate while falling, and WallJump in available again.
+- After the energy is over, the player needs to release J button and then press it again, if he wills to JetpackSprinting again.
+- A bar on the left-hand side shows the energy available.

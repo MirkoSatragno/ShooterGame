@@ -18,6 +18,8 @@ private:
 	bool bTriggeringTeleport;
 	/*Has the player requested a WallJump action?*/
 	bool bTriggeringWallJump;
+	/*Is the player requesting a JetpackSprint action?*/
+	bool bTriggeringJetpackSprint;
 	
 	/*Teleport action current availability*/
 	bool bCanTeleport;
@@ -25,6 +27,9 @@ private:
 	*This is an additional parameter, different from the player state in space.
 	*See GetCanWallJump()*/
 	bool bCanWallJump;
+	/*JetpackSprint action current availability*/
+	bool bCanJetpackSprint;
+
 	
 
 
@@ -37,19 +42,30 @@ public:
 
 	/*Maximum distance of the wall from the player to perform a wall jump*/
 	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0", ClampMax = "100000"), Category = "WallJump")
-		float MaxWallDistance = 10;
+		float WallJumpMaxWallDistance = 10;
 	/*Maximum character rotation towards the wall to perform a wall jump*/
 	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0", ClampMax = "90"), Category = "WallJump")
-		float MaxImpactAngle = 10;
+		float WallJumpMaxImpactAngle = 10;
 	/*Height of the collision point to be checked, relative to Player's center*/
 	UPROPERTY(EditDefaultsOnly, Category = "WallJump")
-		float RelativeCollisionHeight = 0;
+		float WallJumpRelativeCollisionHeight = 0;
 	/*Upward force applied to the player performing the wall jump*/
 	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0", ClampMax = "100"), Category = "WallJump")
-		float JumpVelocityModifier = 1;
+		float WallJumpVelocityModifier = 1;
 	/*Force that pushes the actor away from the wall*/
 	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0", ClampMax = "10000000"), Category = "WallJump")
-		float ResponseImpulseIntensity = 20000;
+		float WallJumpResponseImpulseIntensity = 20000;
+
+
+	/*Force that pushes the actor upward*/
+	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0", ClampMax = "100000"), Category = "JetpackSprint")
+		float JetpackUpwardAcceleration = 3000;
+	/*Jetpack Energy Per Second consumption*/
+	UPROPERTY(EditDefaultsOnly, meta = (ClapMin = "0", ClapMax = "1000"), Category = "Jetpack")
+		int32 JetpackEPS = 10;
+	/*Jetpack Energy Per Second recharge*/
+	UPROPERTY(EditDefaultsOnly, meta = (ClapMin = "0", ClapMax = "1000"), Category = "Jetpack")
+		int32 JetpackRechargeEPS = 10;
 
 
 
@@ -63,6 +79,10 @@ public:
 	* Instead of the default FNetworkPredictionData_Client_Character*/
 	class FNetworkPredictionData_Client* GetPredictionData_Client() const override;
 
+
+	/**
+	* These action state getters and setters also enable/disable incompatible actions
+	**/
 	/* Teleport request state getter*/
 	bool GetTriggeringTeleport() const;
 	/* Teleport request state setter*/
@@ -71,6 +91,11 @@ public:
 	bool GetTriggeringWallJump() const;
 	/* WallJump request state setter*/
 	void SetTriggeringWallJump(bool bTriggeringWallJump);
+	/* JetpackSprint request state getter*/
+	bool GetTriggeringJetpackSprint() const;
+	/* JetpackSprint request state setter*/
+	void SetTriggeringJetpackSprint(bool bTriggeringJetpackSprint);
+
 
 	/*Teleport action current availability getter*/
 	bool GetCanTeleport() const;
@@ -81,17 +106,17 @@ public:
 	bool GetCanWallJump() const;
 	/*WallJump action current availability setter*/
 	void SetCanWallJump(bool bCanWallJump);
+	/*JetpackSprint action current availability getter*/
+	bool GetCanJetpackSprint() const;
+	/*JetpackSprint action current availability setter*/
+	void SetCanJetpackSprint(bool bCanJetpackSprint);
 
 	/**
-	* Checks wether:
+	* Checks whether:
 	* - the player is facing against a surface Normal direction
 	* - the surface is close enough to the player
 	*/
 	bool IsWallInFrontOfPlayerValid() const;
-	/*Checks constraints that may prevent moving along z axis*/
-	bool IsMovementConstraintToPlane() const;
-	/* Getter for impulse provided by walls when WallJumping*/
-	float GetResponseImpulseIntensity() const;
 
 };
 
@@ -109,7 +134,7 @@ public:
 		// Remaining bit masks are available for custom flags. 
 		FLAG_TriggeringTeleport = 0x10,
 		FLAG_TriggeringWallJump = 0x20,
-		FLAG_Custom_2 = 0x40,
+		FLAG_TriggeringJetpackSprint = 0x40,
 		FLAG_Custom_3 = 0x80,
 	};
 
@@ -117,6 +142,8 @@ public:
 	bool bSavedMove_TriggeringTeleport;
 	/*Stores bTriggeringWallJump value*/
 	bool bSavedMove_TriggeringWallJump;
+	/*Stores bTriggeringJetpackSprint value*/
+	bool bSavedMove_TriggeringJetpackSprint;
 
 	/* Clears SavedMove parameters */
 	void Clear() override;

@@ -489,18 +489,48 @@ protected:
 //////////////////////////////
 //Additional abilities part
 //////////////////////////////
+private:
+	
+	/*Maximum jetpack energy*/
+	UPROPERTY(EditAnywhere, Replicated, meta = (ClapMin = "0", ClapMax = "10000"), Category = "Jetpack")
+		double JetpackEnergy = 100;
+
 
 public:
 
+	/**
+	* OnRequest function are called when an input event is called by the player.
+	* They simply update movement nd action states.
+	* Actual movements and actions are performed elsewhere"
+	*/
 	/*Player requests Teleport action*/
-	void RequestTeleport();
+	void OnRequestTeleport();
 	/*Player requests WallJump action*/
-	void RequestWallJump();
+	void OnRequestWallJump();
+	/*Player requests Jetpack action*/
+	void OnRequestStartJetpackSprint();
+	/*Player requests stopping Jetpack action*/
+	void OnRequestStopJetpackSprint();
 
 	/*Teleport actor in forward direction*/
 	void Teleport();
 	/*Jump in opposite direction of a vertical surface*/
 	void WallJump();
+	/*JetpackTick constantly manages Jetpack state,
+	* and makes it sprinting or recharging*/
+	void JetpackTick(float DeltaTime);
+	/*Makes actor sprint upward*/
+	void JetpackSprint(float DeltaTime);
+	/*Recharges actor's JetpackEnergy*/
+	void JetpackRecharge(float DeltaTime);
+
+	/*JetpackEnergy getter*/
+	float GetJetpackEnergy() const;
+	/*JetpackEnergy setter*/
+	void SetJetpackEnergy(float JetpackEnergy);
+	/*Maximum jetpackEnergy getter*/
+	float GetMaxJetpackEnergy() const;
+
 };
 
 

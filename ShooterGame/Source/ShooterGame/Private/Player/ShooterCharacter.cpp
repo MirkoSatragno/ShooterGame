@@ -67,6 +67,7 @@ AShooterCharacter::AShooterCharacter(const FObjectInitializer& ObjectInitializer
 
 	BaseTurnRate = 45.f;
 	BaseLookUpRate = 45.f;
+
 }
 
 void AShooterCharacter::PostInitializeComponents()
@@ -886,8 +887,10 @@ void AShooterCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerI
 	PlayerInputComponent->BindAction("Run", IE_Released, this, &AShooterCharacter::OnStopRunning);
 
 
-	PlayerInputComponent->BindAction("Teleport", IE_Pressed, this, &AShooterCharacter::RequestTeleport);
-	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &AShooterCharacter::RequestWallJump);
+	PlayerInputComponent->BindAction("Teleport", IE_Pressed, this, &AShooterCharacter::OnRequestTeleport);
+	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &AShooterCharacter::OnRequestWallJump);
+	PlayerInputComponent->BindAction("JetpackSprint", IE_Pressed, this, &AShooterCharacter::OnRequestStartJetpackSprint);
+	PlayerInputComponent->BindAction("JetpackSprint", IE_Released, this, &AShooterCharacter::OnRequestStopJetpackSprint);
 }
 
 
@@ -1138,6 +1141,7 @@ void AShooterCharacter::Tick(float DeltaSeconds)
 			DrawDebugSphere(GetWorld(), PointToTest, 10.0f, 8, FColor::Red);
 		}
 	}
+
 }
 
 void AShooterCharacter::BeginDestroy()
@@ -1196,6 +1200,8 @@ void AShooterCharacter::GetLifetimeReplicatedProps(TArray< FLifetimeProperty > &
 	// everyone
 	DOREPLIFETIME(AShooterCharacter, CurrentWeapon);
 	DOREPLIFETIME(AShooterCharacter, Health);
+
+	DOREPLIFETIME_CONDITION(AShooterCharacter, JetpackEnergy, COND_OwnerOnly);
 }
 
 bool AShooterCharacter::IsReplicationPausedForConnection(const FNetViewer& ConnectionOwnerNetViewer)
@@ -1335,13 +1341,7 @@ void AShooterCharacter::BuildPauseReplicationCheckPoints(TArray<FVector>& Releva
 //////////////////////////////
 
 
-void AShooterCharacter::RequestTeleport() {
-
-	/**
-	* This is called when pushing teleport button.
-	* It simply updates ShooterCharacterMovement state requesting a Teleport action.
-	* Actual teleport movement is performed in "Teleport()"
-	*/
+void AShooterCharacter::OnRequestTeleport() {
 
 	AShooterPlayerController* MyPC = Cast<AShooterPlayerController>(Controller);
 	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
@@ -1354,7 +1354,7 @@ void AShooterCharacter::RequestTeleport() {
 
 }
 
-void AShooterCharacter::RequestWallJump()
+void AShooterCharacter::OnRequestWallJump()
 {
 	AShooterPlayerController* MyPC = Cast<AShooterPlayerController>(Controller);
 	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
@@ -1365,6 +1365,33 @@ void AShooterCharacter::RequestWallJump()
 		CharMov->SetTriggeringWallJump(true);
 }
 
+void AShooterCharacter::OnRequestStartJetpackSprint()
+{
+	AShooterPlayerController* MyPC = Cast<AShooterPlayerController>(Controller);
+	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
+
+	if (!MyPC || !CharMov)
+		return;
+
+	if (MyPC->IsGameInputAllowed() && CharMov->GetCanJetpackSprint())
+		CharMov->SetTriggeringJetpackSprint(true);
+
+}
+
+void AShooterCharacter::OnRequestStopJetpackSprint()
+{
+	AShooterPlayerController* MyPC = Cast<AShooterPlayerController>(Controller);
+	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
+
+	if (!MyPC || !CharMov)
+		return;
+
+	if (MyPC->IsGameInputAllowed())
+		CharMov->SetTriggeringJetpackSprint(false);
+
+}
+
+////////////////////////////////////////////////////
 
 void AShooterCharacter::Teleport() {
 
@@ -1378,7 +1405,7 @@ void AShooterCharacter::Teleport() {
 	FVector OldPosition = GetActorLocation();
 
 	/**
-	* Teleport is performed by TeleportDistanceCM centimeters in forward direction,
+	* Teleport is performed by TeleportDistance centimeters in forward direction,
 	* according to player's view direction. 
 	* Teleport movement is NOT limited on the z-plane.
 	*/
@@ -1394,8 +1421,65 @@ void AShooterCharacter::WallJump()
 		return;
 	
 	/*The player jumps a little higher*/
-	CharMov->Velocity.Z = FMath::Max(CharMov->Velocity.Z, CharMov->JumpZVelocity * CharMov->JumpVelocityModifier);
+	CharMov->Velocity.Z = FMath::Max(CharMov->Velocity.Z, CharMov->JumpZVelocity * CharMov->WallJumpVelocityModifier);
 	/*Push the player away from thw wall*/
-	CharMov->AddImpulse(GetActorForwardVector() * (-1) * CharMov->GetResponseImpulseIntensity());
+	CharMov->AddImpulse(GetActorForwardVector() * (-1) * CharMov->WallJumpResponseImpulseIntensity);
 	
+}
+
+void AShooterCharacter::JetpackTick(float DeltaTime)
+{
+	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
+	if (!CharMov)
+		return;
+
+	if (CharMov->GetTriggeringJetpackSprint()) {
+		if (0 < GetJetpackEnergy())
+			JetpackSprint(DeltaTime);
+		else
+			CharMov->SetTriggeringJetpackSprint(false);
+	} 
+	else 
+		if (GetJetpackEnergy() < GetMaxJetpackEnergy())
+			JetpackRecharge(DeltaTime);
+
+}
+
+void AShooterCharacter::JetpackSprint(float DeltaTime) {
+	
+	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
+	
+	if (!CharMov)
+		return;
+
+	float NewEnergy = FMath::Max(0.0f, GetJetpackEnergy() - (float)(CharMov->JetpackEPS * DeltaTime));
+	SetJetpackEnergy(NewEnergy);
+	CharMov->AddForce(FVector::UpVector * CharMov->JetpackUpwardAcceleration * CharMov->Mass);
+		
+}
+
+void AShooterCharacter::JetpackRecharge(float DeltaTime)
+{
+	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
+	if (!CharMov)
+		return;
+
+	float NewEnergy = FMath::Min(GetMaxJetpackEnergy(), GetJetpackEnergy() + (float)(CharMov->JetpackRechargeEPS * DeltaTime));
+	SetJetpackEnergy(NewEnergy);
+}
+
+
+float AShooterCharacter::GetJetpackEnergy() const
+{
+	return JetpackEnergy;
+}
+
+void AShooterCharacter::SetJetpackEnergy(float JetpackEnergy)
+{
+	this->JetpackEnergy = FMath::Clamp(JetpackEnergy, 0.0f, GetMaxJetpackEnergy());
+}
+
+float AShooterCharacter::GetMaxJetpackEnergy() const
+{
+	return GetClass()->GetDefaultObject<AShooterCharacter>()->JetpackEnergy;
 }

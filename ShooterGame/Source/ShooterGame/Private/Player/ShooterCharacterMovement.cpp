@@ -11,9 +11,12 @@ UShooterCharacterMovement::UShooterCharacterMovement(const FObjectInitializer& O
 {
 	SetCanTeleport(true);
 	SetCanWallJump(true);
+	SetCanJetpackSprint(true);
 
 	SetTriggeringTeleport(false);
 	SetTriggeringWallJump(false);
+	SetTriggeringJetpackSprint(false);
+
 
 }
 
@@ -51,6 +54,8 @@ void UShooterCharacterMovement::PerformMovement(float DeltaTime) {
 		SetTriggeringWallJump(false);
 	}
 
+	ShooterCharacter->JetpackTick(DeltaTime);
+
 	Super::PerformMovement(DeltaTime);
 
 }
@@ -74,6 +79,9 @@ void UShooterCharacterMovement::UpdateFromCompressedFlags(uint8 Flags) {
 
 		if (WallJumpFlag != 0)
 			ShooterCharacter->WallJump();
+
+		bTriggeringJetpackSprint = Flags & FSavedMove_Character_Upgraded::FLAG_TriggeringJetpackSprint;
+
 	}
 
 }
@@ -96,6 +104,9 @@ class FNetworkPredictionData_Client* UShooterCharacterMovement::GetPredictionDat
 }
 
 
+/**
+* These action state getters and setters also enable/disable incompatible actions
+**/
 bool UShooterCharacterMovement::GetTriggeringTeleport() const
 {
 	return bTriggeringTeleport;
@@ -116,6 +127,18 @@ void UShooterCharacterMovement::SetTriggeringWallJump(bool bTriggeringWallJump)
 	this->bTriggeringWallJump = bTriggeringWallJump;
 }
 
+bool UShooterCharacterMovement::GetTriggeringJetpackSprint() const
+{
+	return bTriggeringJetpackSprint;
+}
+
+void UShooterCharacterMovement::SetTriggeringJetpackSprint(bool bTriggeringJetpackSprint)
+{
+	this->bTriggeringJetpackSprint = bTriggeringJetpackSprint;
+
+	/*The player can't WallJump while JetpackSprinting*/
+	SetCanWallJump(!bTriggeringJetpackSprint);
+}
 
 bool UShooterCharacterMovement::GetCanTeleport() const
 {
@@ -136,13 +159,31 @@ bool UShooterCharacterMovement::GetCanWallJump() const
 	if (!bCanWallJump)
 		return false;
 
-	return IsFalling() && IsWallInFrontOfPlayerValid() && !IsMovementConstraintToPlane();
+	return IsFalling() && IsWallInFrontOfPlayerValid();
 }
 
 void UShooterCharacterMovement::SetCanWallJump(bool bCanWallJump)
 {
 	this->bCanWallJump = bCanWallJump;
 }
+
+bool UShooterCharacterMovement::GetCanJetpackSprint() const 
+{
+	AShooterCharacter* ShooterCharacter = Cast<AShooterCharacter>(CharacterOwner);
+	if (!ShooterCharacter)
+		return false;
+	
+	if (!bCanJetpackSprint)
+		return false;
+
+	return 0 < ShooterCharacter->GetJetpackEnergy();
+}
+
+void UShooterCharacterMovement::SetCanJetpackSprint(bool bCanJetpackSprint)
+{
+	this->bCanJetpackSprint = bCanJetpackSprint;
+}
+
 
 
 bool UShooterCharacterMovement::IsWallInFrontOfPlayerValid() const
@@ -152,11 +193,11 @@ bool UShooterCharacterMovement::IsWallInFrontOfPlayerValid() const
 		return false;
 	
 	/*For design's sake, the collision with a wall could be checked at lower height, like knees height*/
-	float HeightCorrection = FMath::Clamp(RelativeCollisionHeight, (-1) * ShooterCharacter->GetCapsuleComponent()->GetScaledCapsuleHalfHeight(), ShooterCharacter->GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
+	float HeightCorrection = FMath::Clamp(WallJumpRelativeCollisionHeight, (-1) * ShooterCharacter->GetCapsuleComponent()->GetScaledCapsuleHalfHeight(), ShooterCharacter->GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
 	FVector StartLocation = ShooterCharacter->GetActorLocation() + HeightCorrection;
 	FVector Direction = ShooterCharacter->Controller->GetControlRotation().Vector().GetSafeNormal2D();
 	float PlayerCapsuleRadius = ShooterCharacter->GetCapsuleComponent()->GetScaledCapsuleRadius();
-	FVector EndLocation = StartLocation + Direction * (PlayerCapsuleRadius + MaxWallDistance);
+	FVector EndLocation = StartLocation + Direction * (PlayerCapsuleRadius + WallJumpMaxWallDistance);
 	
 	/*Raycast should not hit the character itself*/
 	FCollisionQueryParams TraceParams = FCollisionQueryParams(FName(TEXT("WallTrace")), true, ShooterCharacter);
@@ -173,7 +214,7 @@ bool UShooterCharacterMovement::IsWallInFrontOfPlayerValid() const
 		if (180 < ImpactAngle)
 			ImpactAngle = 360 - ImpactAngle;
 
-		if (ImpactAngle < MaxImpactAngle)
+		if (ImpactAngle < WallJumpMaxImpactAngle)
 			return true;
 
 	}
@@ -182,20 +223,6 @@ bool UShooterCharacterMovement::IsWallInFrontOfPlayerValid() const
 	return false;
 }
 
-
-bool UShooterCharacterMovement::IsMovementConstraintToPlane() const 
-{
-	/*These checks are based on DoJump() checks*/
-	if (!Super::bConstrainToPlane || FMath::Abs(Super::PlaneConstraintNormal.Z) != 1.f)
-		return false;
-	
-	return true;
-}
-
-float UShooterCharacterMovement::GetResponseImpulseIntensity() const
-{
-	return ResponseImpulseIntensity;
-}
 
 ////////////////////////////////
 //FSavedMove_CharacterUpgraded 
@@ -207,6 +234,7 @@ void FSavedMove_Character_Upgraded::Clear() {
 
 	bSavedMove_TriggeringTeleport = false;
 	bSavedMove_TriggeringWallJump = false;
+	bSavedMove_TriggeringJetpackSprint = false;
 }
 
 uint8 FSavedMove_Character_Upgraded::GetCompressedFlags() const {
@@ -218,6 +246,9 @@ uint8 FSavedMove_Character_Upgraded::GetCompressedFlags() const {
 
 	if (bSavedMove_TriggeringWallJump)
 		Flags |= FLAG_TriggeringWallJump;
+
+	if (bSavedMove_TriggeringJetpackSprint)
+		Flags |= FLAG_TriggeringJetpackSprint;
 
 	return Flags;
 }
@@ -233,6 +264,9 @@ bool FSavedMove_Character_Upgraded::CanCombineWith(const FSavedMovePtr& NewMove,
 	if (NewMove_Upgraded->bSavedMove_TriggeringWallJump)
 		return false;
 
+	if (NewMove_Upgraded->bSavedMove_TriggeringJetpackSprint)
+		return false;
+
 	return FSavedMove_Character::CanCombineWith(NewMove, Character, MaxDelta);
 }
 
@@ -244,6 +278,7 @@ void FSavedMove_Character_Upgraded::SetMoveFor(ACharacter* Character, float InDe
 	if (CharMov) {
 		bSavedMove_TriggeringTeleport = CharMov->GetTriggeringTeleport();
 		bSavedMove_TriggeringWallJump = CharMov->GetTriggeringWallJump();
+		bSavedMove_TriggeringJetpackSprint = CharMov->GetTriggeringJetpackSprint();
 	}
 		
 }
@@ -256,6 +291,7 @@ void FSavedMove_Character_Upgraded::PrepMoveFor(class ACharacter* Character)
 	if (CharMov) {
 		CharMov->SetTriggeringTeleport(bSavedMove_TriggeringTeleport);
 		CharMov->SetTriggeringWallJump(bSavedMove_TriggeringWallJump);
+		CharMov->SetTriggeringJetpackSprint(bSavedMove_TriggeringJetpackSprint);
 	}
 
 }
