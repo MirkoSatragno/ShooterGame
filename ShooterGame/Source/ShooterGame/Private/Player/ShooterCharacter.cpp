@@ -1349,7 +1349,7 @@ void AShooterCharacter::OnRequestTeleport() {
 	if (!MyPC || !CharMov)
 		return;
 
-	if (MyPC->IsGameInputAllowed() && CharMov->GetCanTeleport())
+	if (MyPC->IsGameInputAllowed() && CharMov->CanTeleport())
 		CharMov->SetTriggeringTeleport(true);
 
 }
@@ -1361,7 +1361,7 @@ void AShooterCharacter::OnRequestWallJump()
 
 	if (!MyPC || !CharMov)
 		return;
-	if (MyPC->IsGameInputAllowed() && CharMov->GetCanWallJump())
+	if (MyPC->IsGameInputAllowed() && CharMov->CanWallJump())
 		CharMov->SetTriggeringWallJump(true);
 }
 
@@ -1373,7 +1373,7 @@ void AShooterCharacter::OnRequestStartJetpackSprint()
 	if (!MyPC || !CharMov)
 		return;
 
-	if (MyPC->IsGameInputAllowed() && CharMov->GetCanJetpackSprint())
+	if (MyPC->IsGameInputAllowed() && CharMov->CanJetpackSprint())
 		CharMov->SetTriggeringJetpackSprint(true);
 
 }
@@ -1397,7 +1397,7 @@ void AShooterCharacter::Teleport() {
 
 	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
 
-	if (!CharMov || !CharMov->GetCanTeleport()) {
+	if (!CharMov || !CharMov->CanTeleport()) {
 		//UE_LOG(LogTemp, Warning, TEXT("Can't Teleport"));
 		return;
 	}
@@ -1417,7 +1417,7 @@ void AShooterCharacter::WallJump()
 {
 	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
 
-	if (!CharMov || !CharMov->GetCanWallJump())
+	if (!CharMov || !CharMov->CanWallJump())
 		return;
 	
 	/*The player jumps a little higher*/
