@@ -7,6 +7,8 @@
 #pragma once
 #include "ShooterCharacterMovement.generated.h"
 
+#define MOVE_WallRunning MOVE_Custom
+
 UCLASS()
 class UShooterCharacterMovement : public UCharacterMovementComponent
 {
@@ -20,6 +22,7 @@ private:
 	bool bTriggeringWallJump;
 	/*Is the player requesting a JetpackSprint action?*/
 	bool bTriggeringJetpackSprint;
+	bool bTriggeringWallRun;
 	
 	/*Teleport action current availability*/
 	bool bCanTeleport;
@@ -29,6 +32,7 @@ private:
 	bool bCanWallJump;
 	/*JetpackSprint action current availability*/
 	bool bCanJetpackSprint;
+	bool bCanWallRun;
 
 	
 
@@ -42,7 +46,7 @@ public:
 
 	/*Maximum distance of the wall from the player to perform a wall jump*/
 	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0", ClampMax = "100000"), Category = "WallJump")
-		float WallJumpMaxWallDistance = 10;
+		float WallJumpMaxWallDistance = 40;
 	/*Maximum character rotation towards the wall to perform a wall jump*/
 	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0", ClampMax = "90"), Category = "WallJump")
 		float WallJumpMaxImpactAngle = 10;
@@ -61,12 +65,19 @@ public:
 	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0", ClampMax = "100000"), Category = "JetpackSprint")
 		float JetpackUpwardAcceleration = 3000;
 	/*Jetpack Energy Per Second consumption*/
-	UPROPERTY(EditDefaultsOnly, meta = (ClapMin = "0", ClapMax = "1000"), Category = "Jetpack")
+	UPROPERTY(EditDefaultsOnly, meta = (ClapMin = "0", ClapMax = "1000"), Category = "JetpackSprint")
 		int32 JetpackEPS = 10;
 	/*Jetpack Energy Per Second recharge*/
-	UPROPERTY(EditDefaultsOnly, meta = (ClapMin = "0", ClapMax = "1000"), Category = "Jetpack")
+	UPROPERTY(EditDefaultsOnly, meta = (ClapMin = "0", ClapMax = "1000"), Category = "JetpackSprint")
 		int32 JetpackRechargeEPS = 10;
 
+
+	/*Jetpack Energy Per Second recharge*/
+	UPROPERTY(EditDefaultsOnly, meta = (ClapMin = "0", ClapMax = "1000"), Category = "WallRun")
+		float WallRunMaxDuration = 3;
+	/*Force that pushes the actor upward*/
+	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0", ClampMax = "100000"), Category = "JetpackSprint")
+		float WallRunSpeed = 100;
 
 
 	virtual float GetMaxSpeed() const override;
@@ -95,6 +106,8 @@ public:
 	bool GetTriggeringJetpackSprint() const;
 	/* JetpackSprint request state setter*/
 	void SetTriggeringJetpackSprint(bool bTriggeringJetpackSprint);
+	bool GetTriggeringWallRun();
+	void SetTriggeringWallRun(bool bWallRun);
 
 
 	/*Teleport action current availability getter*/
@@ -110,6 +123,9 @@ public:
 	bool GetCanJetpackSprint() const;
 	/*JetpackSprint action current availability setter*/
 	void SetCanJetpackSprint(bool bCanJetpackSprint);
+	bool GetCanWallRun();
+	bool GetCanStopWallRun();
+	void SetCanWallRun(bool bCanWallRun);
 
 
 	bool CanTeleport() const;
@@ -123,7 +139,11 @@ public:
 	* - the surface is close enough to the player
 	*/
 	bool IsWallInFrontOfPlayerValid() const;
+	bool IsWallNearPlayerValid() const;
 
+
+	UFUNCTION(BlueprintPure)
+		bool IsWallRunning();
 };
 
 

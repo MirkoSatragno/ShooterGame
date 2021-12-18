@@ -12,11 +12,12 @@ UShooterCharacterMovement::UShooterCharacterMovement(const FObjectInitializer& O
 	SetCanTeleport(true);
 	SetCanWallJump(true);
 	SetCanJetpackSprint(true);
+	SetCanWallRun(true);
 
 	SetTriggeringTeleport(false);
 	SetTriggeringWallJump(false);
 	SetTriggeringJetpackSprint(false);
-
+	SetTriggeringWallRun(false);
 
 }
 
@@ -55,6 +56,12 @@ void UShooterCharacterMovement::PerformMovement(float DeltaTime) {
 	}
 
 	ShooterCharacter->JetpackTick(DeltaTime);
+
+	if (GetTriggeringWallRun()) {
+		ShooterCharacter->WallRunChangeState();
+		SetTriggeringWallRun(false);
+	}
+	ShooterCharacter->WallRunTick(DeltaTime);
 
 	Super::PerformMovement(DeltaTime);
 
@@ -140,6 +147,17 @@ void UShooterCharacterMovement::SetTriggeringJetpackSprint(bool bTriggeringJetpa
 	SetCanWallJump(!bTriggeringJetpackSprint);
 }
 
+bool UShooterCharacterMovement::GetTriggeringWallRun()
+{
+	return bTriggeringWallRun;
+}
+
+void UShooterCharacterMovement::SetTriggeringWallRun(bool bTriggeringWallRun)
+{
+	this->bTriggeringWallRun = bTriggeringWallRun;
+}
+
+
 bool UShooterCharacterMovement::GetCanTeleport() const
 {
 	return bCanTeleport;
@@ -202,6 +220,24 @@ bool UShooterCharacterMovement::CanJetpackSprint() const
 }
 
 
+bool UShooterCharacterMovement::GetCanWallRun() 
+{
+	if (!bCanWallRun)
+		return false;
+
+	return IsFalling();/*&& IsWallNearPlayerValid();*/
+}
+
+void UShooterCharacterMovement::SetCanWallRun(bool bCanWallRun) 
+{
+	this->bCanWallRun = bCanWallRun;
+}
+
+bool UShooterCharacterMovement::GetCanStopWallRun()
+{
+	return MovementMode == MOVE_WallRunning;
+}
+
 bool UShooterCharacterMovement::IsWallInFrontOfPlayerValid() const
 {
 	AShooterCharacter* ShooterCharacter = Cast<AShooterCharacter>(CharacterOwner);
@@ -239,6 +275,14 @@ bool UShooterCharacterMovement::IsWallInFrontOfPlayerValid() const
 	return false;
 }
 
+bool UShooterCharacterMovement::IsWallNearPlayerValid() const {
+	return IsWallInFrontOfPlayerValid();
+}
+
+bool UShooterCharacterMovement::IsWallRunning()
+{
+	return MovementMode == MOVE_WallRunning;
+}
 
 ////////////////////////////////
 //FSavedMove_CharacterUpgraded 

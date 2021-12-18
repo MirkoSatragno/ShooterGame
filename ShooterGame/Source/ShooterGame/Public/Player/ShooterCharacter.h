@@ -511,6 +511,8 @@ public:
 	void OnRequestStartJetpackSprint();
 	/*Player requests stopping Jetpack action*/
 	void OnRequestStopJetpackSprint();
+	void OnRequestWallRunStart();
+	void OnRequestWallRunStop();
 
 	/*Teleport actor in forward direction*/
 	void Teleport();
@@ -523,6 +525,8 @@ public:
 	void JetpackSprint(float DeltaTime);
 	/*Recharges actor's JetpackEnergy*/
 	void JetpackRecharge(float DeltaTime);
+	void WallRunTick(float DeltaTime);
+	void WallRunChangeState();
 
 	/*JetpackEnergy getter*/
 	float GetJetpackEnergy() const;

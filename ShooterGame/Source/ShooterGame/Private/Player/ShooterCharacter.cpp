@@ -891,6 +891,8 @@ void AShooterCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerI
 	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &AShooterCharacter::OnRequestWallJump);
 	PlayerInputComponent->BindAction("JetpackSprint", IE_Pressed, this, &AShooterCharacter::OnRequestStartJetpackSprint);
 	PlayerInputComponent->BindAction("JetpackSprint", IE_Released, this, &AShooterCharacter::OnRequestStopJetpackSprint);
+	PlayerInputComponent->BindAction("WallRun", IE_Pressed, this, &AShooterCharacter::OnRequestWallRunStart);
+	PlayerInputComponent->BindAction("WallRun", IE_Released, this, &AShooterCharacter::OnRequestWallRunStop);
 }
 
 
@@ -1391,6 +1393,35 @@ void AShooterCharacter::OnRequestStopJetpackSprint()
 
 }
 
+void AShooterCharacter::OnRequestWallRunStart()
+{
+	AShooterPlayerController* MyPC = Cast<AShooterPlayerController>(Controller);
+	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
+
+	if (!MyPC || !CharMov)
+		return;
+
+	if (MyPC->IsGameInputAllowed() && CharMov->GetCanWallRun()) {
+		CharMov->SetTriggeringWallRun(true);
+	}
+	else
+		UE_LOG(LogTemp, Warning, TEXT("can't set wallrun"));
+}
+
+void AShooterCharacter::OnRequestWallRunStop()
+{
+	AShooterPlayerController* MyPC = Cast<AShooterPlayerController>(Controller);
+	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
+
+	if (!MyPC || !CharMov)
+		return;
+
+	if (MyPC->IsGameInputAllowed() && CharMov->GetCanStopWallRun()) {
+		CharMov->SetTriggeringWallRun(true);
+	}
+		
+}
+
 ////////////////////////////////////////////////////
 
 void AShooterCharacter::Teleport() {
@@ -1466,6 +1497,37 @@ void AShooterCharacter::JetpackRecharge(float DeltaTime)
 
 	float NewEnergy = FMath::Min(GetMaxJetpackEnergy(), GetJetpackEnergy() + (float)(CharMov->JetpackRechargeEPS * DeltaTime));
 	SetJetpackEnergy(NewEnergy);
+}
+
+void AShooterCharacter::WallRunTick(float DeltaTime)
+{
+	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
+	if (!CharMov)
+		return;
+
+	if (CharMov->MovementMode == MOVE_WallRunning) {
+		
+		//CharMov->AddForce(FVector::UpVector * CharMov->WallRunAntigravityAcceleration * CharMov->Mass);
+		//CharMov->AddInputVector(GetActorForwardVector() * CharMov->WallRunSpeed * DeltaTime);
+		TeleportTo(GetActorLocation() + Controller->GetControlRotation().Vector() * CharMov->WallRunSpeed * DeltaTime, GetActorRotation());
+	}
+	
+}
+
+void AShooterCharacter::WallRunChangeState() {
+
+	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
+	if (!CharMov)
+		return;
+
+	if (CharMov->MovementMode != MOVE_WallRunning)
+		CharMov->SetMovementMode(MOVE_WallRunning);
+	else {
+		
+		CharMov->SetMovementMode(MOVE_Walking);
+		UE_LOG(LogTemp, Warning, TEXT("MovementMode: %d"), CharMov->MovementMode);
+	}		
+
 }
 
 
