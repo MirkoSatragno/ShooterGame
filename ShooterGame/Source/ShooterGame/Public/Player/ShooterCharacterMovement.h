@@ -111,6 +111,12 @@ public:
 	/*JetpackSprint action current availability setter*/
 	void SetCanJetpackSprint(bool bCanJetpackSprint);
 
+
+	bool CanTeleport() const;
+	bool CanWallJump() const;
+	bool CanJetpackSprint() const;
+
+
 	/**
 	* Checks whether:
 	* - the player is facing against a surface Normal direction
@@ -144,6 +150,16 @@ public:
 	bool bSavedMove_TriggeringWallJump;
 	/*Stores bTriggeringJetpackSprint value*/
 	bool bSavedMove_TriggeringJetpackSprint;
+
+	/*Stores b value*/
+	bool bSavedMove_CanTeleport;
+	/*Stores bCanWallJump value*/
+	bool bSavedMove_CanWallJump;
+	/*Stores bCanJetpackSprint value*/
+	bool bSavedMove_CanJetpackSprint;
+
+	/*Stores JetpackEnergy value*/
+	double SavedMove_JetpackEnergy;
 
 	/* Clears SavedMove parameters */
 	void Clear() override;

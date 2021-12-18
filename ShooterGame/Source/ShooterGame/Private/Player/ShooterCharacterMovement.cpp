@@ -152,14 +152,7 @@ void UShooterCharacterMovement::SetCanTeleport(bool bCanTeleport)
 
 bool UShooterCharacterMovement::GetCanWallJump() const
 {
-	/** Two conditions are checked:
-	* first one is the boolean bCanWallJump, that can be set to false when necessary;
-	* second one is a check of the physical state of the player (is he falling, is he against a wall, etc.)*/
-	
-	if (!bCanWallJump)
-		return false;
-
-	return IsFalling() && IsWallInFrontOfPlayerValid();
+	return bCanWallJump;
 }
 
 void UShooterCharacterMovement::SetCanWallJump(bool bCanWallJump)
@@ -167,16 +160,9 @@ void UShooterCharacterMovement::SetCanWallJump(bool bCanWallJump)
 	this->bCanWallJump = bCanWallJump;
 }
 
-bool UShooterCharacterMovement::GetCanJetpackSprint() const 
+bool UShooterCharacterMovement::GetCanJetpackSprint() const
 {
-	AShooterCharacter* ShooterCharacter = Cast<AShooterCharacter>(CharacterOwner);
-	if (!ShooterCharacter)
-		return false;
-	
-	if (!bCanJetpackSprint)
-		return false;
-
-	return 0 < ShooterCharacter->GetJetpackEnergy();
+	return bCanJetpackSprint;
 }
 
 void UShooterCharacterMovement::SetCanJetpackSprint(bool bCanJetpackSprint)
@@ -184,6 +170,36 @@ void UShooterCharacterMovement::SetCanJetpackSprint(bool bCanJetpackSprint)
 	this->bCanJetpackSprint = bCanJetpackSprint;
 }
 
+
+
+bool UShooterCharacterMovement::CanTeleport() const
+{
+	return bCanTeleport;
+}
+
+bool UShooterCharacterMovement::CanWallJump() const
+{
+	/** Two conditions are checked:
+	* first one is the boolean bCanWallJump, that can be set to false when necessary;
+	* second one is a check of the physical state of the player (is he falling, is he against a wall, etc.)*/
+
+	if (!bCanWallJump)
+		return false;
+
+	return IsFalling() && IsWallInFrontOfPlayerValid();
+}
+
+bool UShooterCharacterMovement::CanJetpackSprint() const
+{
+	AShooterCharacter* ShooterCharacter = Cast<AShooterCharacter>(CharacterOwner);
+	if (!ShooterCharacter)
+		return false;
+
+	if (!bCanJetpackSprint)
+		return false;
+
+	return 0 < ShooterCharacter->GetJetpackEnergy();
+}
 
 
 bool UShooterCharacterMovement::IsWallInFrontOfPlayerValid() const
@@ -274,12 +290,20 @@ void FSavedMove_Character_Upgraded::SetMoveFor(ACharacter* Character, float InDe
 {
 	FSavedMove_Character::SetMoveFor(Character, InDeltaTime, NewAccel, ClientData);
 
+	AShooterCharacter* ShooterCharacter = Cast<AShooterCharacter>(Character);
 	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(Character->GetCharacterMovement());
-	if (CharMov) {
-		bSavedMove_TriggeringTeleport = CharMov->GetTriggeringTeleport();
-		bSavedMove_TriggeringWallJump = CharMov->GetTriggeringWallJump();
-		bSavedMove_TriggeringJetpackSprint = CharMov->GetTriggeringJetpackSprint();
-	}
+	if (!ShooterCharacter || !CharMov)
+		return;
+
+	bSavedMove_TriggeringTeleport = CharMov->GetTriggeringTeleport();
+	bSavedMove_TriggeringWallJump = CharMov->GetTriggeringWallJump();
+	bSavedMove_TriggeringJetpackSprint = CharMov->GetTriggeringJetpackSprint();
+
+	bSavedMove_CanTeleport = CharMov->GetCanTeleport();
+	bSavedMove_CanWallJump = CharMov->GetCanWallJump();
+	bSavedMove_CanJetpackSprint = CharMov->GetCanJetpackSprint();
+
+	SavedMove_JetpackEnergy = ShooterCharacter->GetJetpackEnergy();
 		
 }
 
@@ -287,12 +311,20 @@ void FSavedMove_Character_Upgraded::PrepMoveFor(class ACharacter* Character)
 {
 	FSavedMove_Character::PrepMoveFor(Character);
 
+	AShooterCharacter* ShooterCharacter = Cast<AShooterCharacter>(Character);
 	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(Character->GetCharacterMovement());
-	if (CharMov) {
-		CharMov->SetTriggeringTeleport(bSavedMove_TriggeringTeleport);
-		CharMov->SetTriggeringWallJump(bSavedMove_TriggeringWallJump);
-		CharMov->SetTriggeringJetpackSprint(bSavedMove_TriggeringJetpackSprint);
-	}
+	if (!ShooterCharacter || !CharMov)
+		return;
+
+	CharMov->SetTriggeringTeleport(bSavedMove_TriggeringTeleport);
+	CharMov->SetTriggeringWallJump(bSavedMove_TriggeringWallJump);
+	CharMov->SetTriggeringJetpackSprint(bSavedMove_TriggeringJetpackSprint);
+
+	CharMov->SetCanTeleport(bSavedMove_CanTeleport);
+	CharMov->SetCanWallJump(bSavedMove_CanWallJump);
+	CharMov->SetCanJetpackSprint(bSavedMove_CanJetpackSprint);
+
+	ShooterCharacter->SetJetpackEnergy(SavedMove_JetpackEnergy);
 
 }
 
