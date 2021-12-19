@@ -18,8 +18,54 @@ UShooterCharacterMovement::UShooterCharacterMovement(const FObjectInitializer& O
 	SetTriggeringWallJump(false);
 	SetTriggeringJetpackSprint(false);
 	SetTriggeringWallRun(false);
+	SetTriggeringWallRunJump(false);
 
+	SetWallRunFlowing(false);
 }
+
+
+bool UShooterCharacterMovement::IsWallInFrontOfPlayerValid() const
+{
+	AShooterCharacter* ShooterCharacter = Cast<AShooterCharacter>(CharacterOwner);
+	if (!ShooterCharacter)
+		return false;
+
+	/*For design's sake, the collision with a wall could be checked at lower height, like knees height*/
+	float HeightCorrection = FMath::Clamp(WallJumpRelativeCollisionHeight, (-1) * ShooterCharacter->GetCapsuleComponent()->GetScaledCapsuleHalfHeight(), ShooterCharacter->GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
+	FVector StartLocation = ShooterCharacter->GetActorLocation() + HeightCorrection;
+	FVector Direction = ShooterCharacter->Controller->GetControlRotation().Vector().GetSafeNormal2D();
+	float PlayerCapsuleRadius = ShooterCharacter->GetCapsuleComponent()->GetScaledCapsuleRadius();
+	FVector EndLocation = StartLocation + Direction * (PlayerCapsuleRadius + WallJumpMaxWallDistance);
+
+	/*Raycast should not hit the character itself*/
+	FCollisionQueryParams TraceParams = FCollisionQueryParams(FName(TEXT("WallTrace")), true, ShooterCharacter);
+
+	/*Let's check for a collision in front of the player using a raycast*/
+	FHitResult HitDetails = FHitResult(EForceInit::ForceInit);
+	bool bIsHit = GetWorld()->LineTraceSingleByChannel(HitDetails, StartLocation, EndLocation, ECC_Visibility, TraceParams);
+
+	if (bIsHit) {
+		/*Angle between player direction and inverted hit object normal
+		* We want it to be lower than a custom threshold*/
+		float ImpactAngle = FMath::Abs(Direction.Rotation().Yaw - (HitDetails.Normal.Rotation().Yaw - 180));
+		/*If the angle is over 180, let's take its explementary value for a simpler MaxImpactAngle threshold comparison*/
+		if (180 < ImpactAngle)
+			ImpactAngle = 360 - ImpactAngle;
+
+		if (ImpactAngle < WallJumpMaxImpactAngle)
+			return true;
+
+	}
+
+
+	return false;
+}
+
+bool UShooterCharacterMovement::IsWallNearPlayerValid() const {
+	return IsWallInFrontOfPlayerValid();
+}
+
+
 
 
 float UShooterCharacterMovement::GetMaxSpeed() const
@@ -57,10 +103,18 @@ void UShooterCharacterMovement::PerformMovement(float DeltaTime) {
 
 	ShooterCharacter->JetpackTick(DeltaTime);
 
-	if (GetTriggeringWallRun()) {
-		ShooterCharacter->WallRunChangeState();
-		SetTriggeringWallRun(false);
+	if (GetTriggeringWallRunJump()) {
+		ShooterCharacter->WallRunJump();
+		SetTriggeringWallRunJump(false);
+		SetWallRunJumpOnce(false);
 	}
+	else {
+		if (GetTriggeringWallRun()) {
+			ShooterCharacter->WallRunChangeState();
+			SetTriggeringWallRun(false);
+		}
+	}
+	
 	ShooterCharacter->WallRunTick(DeltaTime);
 
 	Super::PerformMovement(DeltaTime);
@@ -147,15 +201,37 @@ void UShooterCharacterMovement::SetTriggeringJetpackSprint(bool bTriggeringJetpa
 	SetCanWallJump(!bTriggeringJetpackSprint);
 }
 
-bool UShooterCharacterMovement::GetTriggeringWallRun()
+bool UShooterCharacterMovement::GetTriggeringWallRun() const
 {
-	return bTriggeringWallRun;
+	return bTriggeringWallRun && !GetTriggeringWallRunJump();
 }
 
 void UShooterCharacterMovement::SetTriggeringWallRun(bool bTriggeringWallRun)
 {
 	this->bTriggeringWallRun = bTriggeringWallRun;
+
+	
+	if (bTriggeringWallRun) {
+		/*If the player is not WallRunning then he's gonna be, so he won't be able to JetpackSprint.
+		*And viceversa if he is already WallRunning. */
+		if (!IsWallRunning())
+			SetCanJetpackSprint(false);
+		if (IsWallRunning())
+			SetCanJetpackSprint(true);
+	}
+	
 }
+
+bool UShooterCharacterMovement::GetTriggeringWallRunJump() const
+{
+	return bTriggeringWallRunJump;
+}
+
+void UShooterCharacterMovement::SetTriggeringWallRunJump(bool bTriggeringWallRunJump)
+{
+	this->bTriggeringWallRunJump = bTriggeringWallRunJump;
+}
+
 
 
 bool UShooterCharacterMovement::GetCanTeleport() const
@@ -222,10 +298,7 @@ bool UShooterCharacterMovement::CanJetpackSprint() const
 
 bool UShooterCharacterMovement::GetCanWallRun() 
 {
-	if (!bCanWallRun)
-		return false;
-
-	return IsFalling();/*&& IsWallNearPlayerValid();*/
+	return bCanWallRun;
 }
 
 void UShooterCharacterMovement::SetCanWallRun(bool bCanWallRun) 
@@ -233,56 +306,85 @@ void UShooterCharacterMovement::SetCanWallRun(bool bCanWallRun)
 	this->bCanWallRun = bCanWallRun;
 }
 
-bool UShooterCharacterMovement::GetCanStopWallRun()
+bool UShooterCharacterMovement::CanWallRun() const
+{
+	if (!bCanWallRun)
+		return false;
+
+	return IsFalling();/*&& IsWallNearPlayerValid();*/
+}
+
+bool UShooterCharacterMovement::CanStopWallRun() const
 {
 	return MovementMode == MOVE_WallRunning;
 }
 
-bool UShooterCharacterMovement::IsWallInFrontOfPlayerValid() const
+bool UShooterCharacterMovement::CanWallRunJump() const
 {
-	AShooterCharacter* ShooterCharacter = Cast<AShooterCharacter>(CharacterOwner);
-	if (!ShooterCharacter)
-		return false;
+	double TimeNow = GetWorld()->TimeSeconds;
 	
-	/*For design's sake, the collision with a wall could be checked at lower height, like knees height*/
-	float HeightCorrection = FMath::Clamp(WallJumpRelativeCollisionHeight, (-1) * ShooterCharacter->GetCapsuleComponent()->GetScaledCapsuleHalfHeight(), ShooterCharacter->GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
-	FVector StartLocation = ShooterCharacter->GetActorLocation() + HeightCorrection;
-	FVector Direction = ShooterCharacter->Controller->GetControlRotation().Vector().GetSafeNormal2D();
-	float PlayerCapsuleRadius = ShooterCharacter->GetCapsuleComponent()->GetScaledCapsuleRadius();
-	FVector EndLocation = StartLocation + Direction * (PlayerCapsuleRadius + WallJumpMaxWallDistance);
-	
-	/*Raycast should not hit the character itself*/
-	FCollisionQueryParams TraceParams = FCollisionQueryParams(FName(TEXT("WallTrace")), true, ShooterCharacter);
+	return IsFalling() && GetWallRunJumpOnce() && TimeNow < GetWallRunMaxJumpTime();
+}
 
-	/*Let's check for a collision in front of the player using a raycast*/
-	FHitResult HitDetails = FHitResult(EForceInit::ForceInit);
-	bool bIsHit = GetWorld()->LineTraceSingleByChannel(HitDetails, StartLocation, EndLocation, ECC_Visibility, TraceParams);
 
-	if (bIsHit) {
-		/*Angle between player direction and inverted hit object normal
-		* We want it to be lower than a custom threshold*/
-		float ImpactAngle = FMath::Abs(Direction.Rotation().Yaw - (HitDetails.Normal.Rotation().Yaw - 180));
-		/*If the angle is over 180, let's take its explementary value for a simpler MaxImpactAngle threshold comparison*/
-		if (180 < ImpactAngle)
-			ImpactAngle = 360 - ImpactAngle;
 
-		if (ImpactAngle < WallJumpMaxImpactAngle)
-			return true;
+double UShooterCharacterMovement::GetWallRunMaxEndingTime() const
+{
+	return WallRunMaxEndingTime;
+}
 
+void UShooterCharacterMovement::SetWallRunMaxEndingTime(double WallRunMaxEndingTime)
+{
+	this->WallRunMaxEndingTime = WallRunMaxEndingTime;
+}
+
+double UShooterCharacterMovement::GetWallRunMaxJumpTime() const
+{
+	return WallRunMaxJumpTime;
+}
+
+void UShooterCharacterMovement::SetWallRunMaxJumpTime(double WallRunMaxJumpTime)
+{
+	this->WallRunMaxJumpTime = WallRunMaxJumpTime;
+}
+
+bool UShooterCharacterMovement::GetWallRunJumpOnce() const
+{
+	return bWallRunJumpOnce;
+}
+
+void UShooterCharacterMovement::SetWallRunJumpOnce(bool bWallRunJumpOnce) 
+{
+	this->bWallRunJumpOnce = bWallRunJumpOnce;
+}
+
+bool UShooterCharacterMovement::GetWallRunFlowing() const
+{
+	return bWallRunFlowing;
+}
+
+void UShooterCharacterMovement::SetWallRunFlowing(bool bWallRunFlowing)
+{
+	this->bWallRunFlowing = bWallRunFlowing;
+}
+
+
+void UShooterCharacterMovement::SetMovementMode(EMovementMode NewMovementMode) 
+{
+	if (NewMovementMode == MOVE_WallRunning) {
+		/*This prevents that stored velocity is reapplied after WallRunning*/
+		Velocity = FVector::ZeroVector;
 	}
-		
 
-	return false;
+	Super::SetMovementMode(NewMovementMode);
 }
 
-bool UShooterCharacterMovement::IsWallNearPlayerValid() const {
-	return IsWallInFrontOfPlayerValid();
-}
 
 bool UShooterCharacterMovement::IsWallRunning()
 {
 	return MovementMode == MOVE_WallRunning;
 }
+
 
 ////////////////////////////////
 //FSavedMove_CharacterUpgraded 
@@ -342,13 +444,18 @@ void FSavedMove_Character_Upgraded::SetMoveFor(ACharacter* Character, float InDe
 	bSavedMove_TriggeringTeleport = CharMov->GetTriggeringTeleport();
 	bSavedMove_TriggeringWallJump = CharMov->GetTriggeringWallJump();
 	bSavedMove_TriggeringJetpackSprint = CharMov->GetTriggeringJetpackSprint();
+	bSavedMove_TriggeringWallRun = CharMov->GetTriggeringWallRun();
+	bSavedMove_TriggeringWallRunJump = CharMov->GetTriggeringWallRunJump();
 
 	bSavedMove_CanTeleport = CharMov->GetCanTeleport();
 	bSavedMove_CanWallJump = CharMov->GetCanWallJump();
 	bSavedMove_CanJetpackSprint = CharMov->GetCanJetpackSprint();
+	bSavedMove_CanWallRun = CharMov->GetCanWallRun();
 
 	SavedMove_JetpackEnergy = ShooterCharacter->GetJetpackEnergy();
-		
+	SavedMove_WallRunMaxEndingTime = CharMov->GetWallRunMaxEndingTime();
+	SavedMove_WallRunMaxJumpTime = CharMov->GetWallRunMaxJumpTime();
+	bSavedMove_WallRunJumpOnce = CharMov->GetWallRunJumpOnce();
 }
 
 void FSavedMove_Character_Upgraded::PrepMoveFor(class ACharacter* Character)
@@ -363,6 +470,7 @@ void FSavedMove_Character_Upgraded::PrepMoveFor(class ACharacter* Character)
 	CharMov->SetTriggeringTeleport(bSavedMove_TriggeringTeleport);
 	CharMov->SetTriggeringWallJump(bSavedMove_TriggeringWallJump);
 	CharMov->SetTriggeringJetpackSprint(bSavedMove_TriggeringJetpackSprint);
+	CharMov->SetTriggeringWallRun(bSavedMove_TriggeringWallRun);
 
 	CharMov->SetCanTeleport(bSavedMove_CanTeleport);
 	CharMov->SetCanWallJump(bSavedMove_CanWallJump);

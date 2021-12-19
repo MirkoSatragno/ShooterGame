@@ -23,6 +23,7 @@ private:
 	/*Is the player requesting a JetpackSprint action?*/
 	bool bTriggeringJetpackSprint;
 	bool bTriggeringWallRun;
+	bool bTriggeringWallRunJump;
 	
 	/*Teleport action current availability*/
 	bool bCanTeleport;
@@ -34,8 +35,24 @@ private:
 	bool bCanJetpackSprint;
 	bool bCanWallRun;
 
+	/*Stores Maximum ending time for WallRun, according to WallRunMaxDuration*/
+	double WallRunMaxEndingTime;
+	double WallRunMaxJumpTime;
+	bool bWallRunJumpOnce;
+	/** While MOVE_WallRunning idicates a physical state, that can be alternated with MOVE_Falling,
+	* bWallRunFlowing indicates if the player is performing many chained WallRunning actions,
+	* without touching the floor.*/
+	bool bWallRunFlowing;
 	
 
+
+	/**
+	* Checks whether:
+	* - the player is facing against a surface Normal direction
+	* - the surface is close enough to the player
+	*/
+	bool IsWallInFrontOfPlayerValid() const;
+	bool IsWallNearPlayerValid() const;
 
 public:
 
@@ -72,12 +89,18 @@ public:
 		int32 JetpackRechargeEPS = 10;
 
 
-	/*Jetpack Energy Per Second recharge*/
+	/*Maximum duration od WallRun on the same surface*/
 	UPROPERTY(EditDefaultsOnly, meta = (ClapMin = "0", ClapMax = "1000"), Category = "WallRun")
 		float WallRunMaxDuration = 3;
-	/*Force that pushes the actor upward*/
-	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0", ClampMax = "100000"), Category = "JetpackSprint")
-		float WallRunSpeed = 100;
+	UPROPERTY(EditDefaultsOnly, meta = (ClapMin = "0", ClapMax = "1000"), Category = "WallRun")
+		float WallRunMaxJumpDelay = 1;
+	/*Movement speed while WallRunning*/
+	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0", ClampMax = "100000"), Category = "WallRun")
+		float WallRunSpeed = 200;
+	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0", ClampMax = "10000000"), Category = "WallRun")
+		float WallRunJumpLateralAcceleration = 30000;
+	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0", ClampMax = "100"), Category = "WallRun")
+		float WallRunJumpVerticalVelocityModifier = 1;
 
 
 	virtual float GetMaxSpeed() const override;
@@ -106,42 +129,50 @@ public:
 	bool GetTriggeringJetpackSprint() const;
 	/* JetpackSprint request state setter*/
 	void SetTriggeringJetpackSprint(bool bTriggeringJetpackSprint);
-	bool GetTriggeringWallRun();
-	void SetTriggeringWallRun(bool bWallRun);
+
+	bool GetTriggeringWallRun() const;
+	void SetTriggeringWallRun(bool bTriggeringWallRun);
+	bool GetTriggeringWallRunJump() const;
+	void SetTriggeringWallRunJump(bool bTriggeringWallRunJump);
 
 
 	/*Teleport action current availability getter*/
 	bool GetCanTeleport() const;
-	/*Teleport action current availability setter*/
-	void SetCanTeleport(bool bCanTeleport);
-	/*WallJump action current availability getter.
-	*It also checks if player's state alow this movement*/
+	/*WallJump action current availability getter*/
 	bool GetCanWallJump() const;
-	/*WallJump action current availability setter*/
-	void SetCanWallJump(bool bCanWallJump);
 	/*JetpackSprint action current availability getter*/
 	bool GetCanJetpackSprint() const;
+	/*WallRun action current availbility getter*/
+	bool GetCanWallRun();
+	/*Teleport action current availability setter*/
+	void SetCanTeleport(bool bCanTeleport);
+	/*WallJump action current availability setter*/
+	void SetCanWallJump(bool bCanWallJump);
 	/*JetpackSprint action current availability setter*/
 	void SetCanJetpackSprint(bool bCanJetpackSprint);
-	bool GetCanWallRun();
-	bool GetCanStopWallRun();
+	/*WallRun action current availability setter*/
 	void SetCanWallRun(bool bCanWallRun);
 
 
 	bool CanTeleport() const;
 	bool CanWallJump() const;
 	bool CanJetpackSprint() const;
+	bool CanWallRun() const;
+	bool CanStopWallRun() const;
+	bool CanWallRunJump() const;
 
+	double GetWallRunMaxEndingTime() const;
+	void SetWallRunMaxEndingTime(double WallRunMaxEndingTime);
+	double GetWallRunMaxJumpTime() const;
+	void SetWallRunMaxJumpTime(double WallRunMaxJumpTime);
+	bool GetWallRunJumpOnce() const;
+	void SetWallRunJumpOnce(bool bWallRunJumpOnce);
+	bool GetWallRunFlowing() const;
+	void SetWallRunFlowing(bool bWallRunFlowing);
 
-	/**
-	* Checks whether:
-	* - the player is facing against a surface Normal direction
-	* - the surface is close enough to the player
-	*/
-	bool IsWallInFrontOfPlayerValid() const;
-	bool IsWallNearPlayerValid() const;
+	void SetMovementMode(EMovementMode NewMovementMode);
 
-
+	/*Is the Player performing WallRun movement?*/
 	UFUNCTION(BlueprintPure)
 		bool IsWallRunning();
 };
@@ -170,6 +201,8 @@ public:
 	bool bSavedMove_TriggeringWallJump;
 	/*Stores bTriggeringJetpackSprint value*/
 	bool bSavedMove_TriggeringJetpackSprint;
+	bool bSavedMove_TriggeringWallRun;
+	bool bSavedMove_TriggeringWallRunJump;
 
 	/*Stores b value*/
 	bool bSavedMove_CanTeleport;
@@ -177,9 +210,15 @@ public:
 	bool bSavedMove_CanWallJump;
 	/*Stores bCanJetpackSprint value*/
 	bool bSavedMove_CanJetpackSprint;
+	bool bSavedMove_CanWallRun;
 
 	/*Stores JetpackEnergy value*/
 	double SavedMove_JetpackEnergy;
+	double SavedMove_WallRunMaxEndingTime;
+	double SavedMove_WallRunMaxJumpTime;
+	bool bSavedMove_WallRunJumpOnce;
+
+
 
 	/* Clears SavedMove parameters */
 	void Clear() override;

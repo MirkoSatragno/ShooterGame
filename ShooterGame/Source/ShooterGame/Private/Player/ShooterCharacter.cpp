@@ -1375,6 +1375,7 @@ void AShooterCharacter::OnRequestStartJetpackSprint()
 	if (!MyPC || !CharMov)
 		return;
 
+
 	if (MyPC->IsGameInputAllowed() && CharMov->CanJetpackSprint())
 		CharMov->SetTriggeringJetpackSprint(true);
 
@@ -1398,14 +1399,17 @@ void AShooterCharacter::OnRequestWallRunStart()
 	AShooterPlayerController* MyPC = Cast<AShooterPlayerController>(Controller);
 	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
 
-	if (!MyPC || !CharMov)
+	if (!MyPC || !CharMov || !MyPC->IsGameInputAllowed())
 		return;
 
-	if (MyPC->IsGameInputAllowed() && CharMov->GetCanWallRun()) {
-		CharMov->SetTriggeringWallRun(true);
+	if (CharMov->CanWallRunJump()) {
+		CharMov->SetTriggeringWallRunJump(true);
 	}
 	else
-		UE_LOG(LogTemp, Warning, TEXT("can't set wallrun"));
+		if (CharMov->CanWallRun()) {
+			CharMov->SetTriggeringWallRun(true);
+		}
+
 }
 
 void AShooterCharacter::OnRequestWallRunStop()
@@ -1416,7 +1420,7 @@ void AShooterCharacter::OnRequestWallRunStop()
 	if (!MyPC || !CharMov)
 		return;
 
-	if (MyPC->IsGameInputAllowed() && CharMov->GetCanStopWallRun()) {
+	if (MyPC->IsGameInputAllowed() && CharMov->CanStopWallRun()) {
 		CharMov->SetTriggeringWallRun(true);
 	}
 		
@@ -1505,11 +1509,22 @@ void AShooterCharacter::WallRunTick(float DeltaTime)
 	if (!CharMov)
 		return;
 
-	if (CharMov->MovementMode == MOVE_WallRunning) {
+	
+
+	if (CharMov->IsWallRunning()) {
 		
-		//CharMov->AddForce(FVector::UpVector * CharMov->WallRunAntigravityAcceleration * CharMov->Mass);
-		//CharMov->AddInputVector(GetActorForwardVector() * CharMov->WallRunSpeed * DeltaTime);
-		TeleportTo(GetActorLocation() + Controller->GetControlRotation().Vector() * CharMov->WallRunSpeed * DeltaTime, GetActorRotation());
+		double TimeNow = GetWorld()->TimeSeconds;
+
+		if (TimeNow < CharMov->GetWallRunMaxEndingTime())
+			TeleportTo(GetActorLocation() + Controller->GetControlRotation().Vector() * CharMov->WallRunSpeed * DeltaTime, GetActorRotation());
+		else
+			CharMov->SetTriggeringWallRun(true);
+	}
+	else {
+		/*Here I check when the flow of WallRunning finally ends (usually touching the ground).
+		* This is necessary in order to prevent a wall normal direction check when a new WallRun flow will be started */
+		if (CharMov->GetWallRunFlowing() && !CharMov->IsFalling())
+			CharMov->SetWallRunFlowing(false);
 	}
 	
 }
@@ -1520,14 +1535,32 @@ void AShooterCharacter::WallRunChangeState() {
 	if (!CharMov)
 		return;
 
-	if (CharMov->MovementMode != MOVE_WallRunning)
+	double TimeNow = GetWorld()->TimeSeconds;
+
+	if (!CharMov->IsWallRunning()) {
+
+		CharMov->SetWallRunMaxEndingTime(TimeNow + CharMov->WallRunMaxDuration);
 		CharMov->SetMovementMode(MOVE_WallRunning);
+	}
 	else {
-		
-		CharMov->SetMovementMode(MOVE_Walking);
-		UE_LOG(LogTemp, Warning, TEXT("MovementMode: %d"), CharMov->MovementMode);
+		CharMov->SetWallRunMaxJumpTime(TimeNow + CharMov->WallRunMaxJumpDelay);
+		CharMov->SetWallRunJumpOnce(true);
+		CharMov->SetMovementMode(MOVE_Falling);
+
+		/*Note: the movement mode is not MOVE_WallRunning anymore,
+		* but the player is still in the WallRun flow and can jump towards another wall, and so on*/
 	}		
 
+}
+
+void AShooterCharacter::WallRunJump()
+{
+	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
+	if (!CharMov)
+		return;
+
+	CharMov->Velocity.Z = FMath::Max(CharMov->Velocity.Z, CharMov->JumpZVelocity * CharMov->WallRunJumpVerticalVelocityModifier);
+	CharMov->AddImpulse(GetActorForwardVector() * CharMov->WallRunJumpLateralAcceleration);
 }
 
 

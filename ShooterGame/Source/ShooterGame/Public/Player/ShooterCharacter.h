@@ -527,6 +527,7 @@ public:
 	void JetpackRecharge(float DeltaTime);
 	void WallRunTick(float DeltaTime);
 	void WallRunChangeState();
+	void WallRunJump();
 
 	/*JetpackEnergy getter*/
 	float GetJetpackEnergy() const;
