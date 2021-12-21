@@ -1342,7 +1342,6 @@ void AShooterCharacter::BuildPauseReplicationCheckPoints(TArray<FVector>& Releva
 //Additional abilities part
 //////////////////////////////
 
-
 void AShooterCharacter::OnRequestTeleport() {
 
 	AShooterPlayerController* MyPC = Cast<AShooterPlayerController>(Controller);
@@ -1445,7 +1444,7 @@ void AShooterCharacter::Teleport() {
 	* Teleport movement is NOT limited on the z-plane.
 	*/
 	TeleportTo(OldPosition + Controller->GetControlRotation().Vector() * CharMov->TeleportDistance, GetActorRotation());
-
+	
 }
 
 void AShooterCharacter::WallJump()
@@ -1515,8 +1514,12 @@ void AShooterCharacter::WallRunTick(float DeltaTime)
 		
 		double TimeNow = GetWorld()->TimeSeconds;
 
-		if (TimeNow < CharMov->GetWallRunMaxEndingTime())
-			TeleportTo(GetActorLocation() + Controller->GetControlRotation().Vector() * CharMov->WallRunSpeed * DeltaTime, GetActorRotation());
+		if (TimeNow < CharMov->GetWallRunMaxEndingTime() && WallRunCalculateNewWallGripPoint(DeltaTime)) {
+			
+			WallRunMoveToNewPosition();
+
+			//TeleportTo(GetActorLocation() + Controller->GetControlRotation().Vector() * CharMov->WallRunSpeed * DeltaTime, GetActorRotation());
+		}
 		else
 			CharMov->SetTriggeringWallRun(true);
 	}
@@ -1541,6 +1544,9 @@ void AShooterCharacter::WallRunChangeState() {
 
 		CharMov->SetWallRunMaxEndingTime(TimeNow + CharMov->WallRunMaxDuration);
 		CharMov->SetMovementMode(MOVE_WallRunning);
+		
+		WallRunComputeMovementDirection();
+		WallRunMoveToNewPosition();
 	}
 	else {
 		CharMov->SetWallRunMaxJumpTime(TimeNow + CharMov->WallRunMaxJumpDelay);
@@ -1562,6 +1568,85 @@ void AShooterCharacter::WallRunJump()
 	CharMov->Velocity.Z = FMath::Max(CharMov->Velocity.Z, CharMov->JumpZVelocity * CharMov->WallRunJumpVerticalVelocityModifier);
 	CharMov->AddImpulse(GetActorForwardVector() * CharMov->WallRunJumpLateralAcceleration);
 }
+
+void AShooterCharacter::WallRunMoveToNewPosition() 
+{
+	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
+	if (!CharMov)
+		return;
+
+	FVector NewPosition = CharMov->GetWallRunLastHitPoint()->ImpactPoint + CharMov->GetWallRunLastHitPoint()->ImpactNormal * CharMov->WallRunMaxWallSlidingDistance;
+	TeleportTo(NewPosition, GetActorRotation());
+}
+
+void AShooterCharacter::WallRunComputeMovementDirection()
+{
+	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
+	if (!CharMov)
+		return;
+
+	FVector WallNormal2D = CharMov->GetWallRunLastHitPoint()->ImpactNormal.GetSafeNormal2D();
+	FVector InvertedRay2D = GetActorRotation().Vector().GetSafeNormal2D(); //(GetActorLocation() - CharMov->GetWallRunLastHitPoint()->ImpactPoint).GetSafeNormal2D();
+
+	FVector VerticalVector = FVector::CrossProduct(WallNormal2D, InvertedRay2D).GetSafeNormal();
+	FVector LateralVector = FVector::CrossProduct(VerticalVector, WallNormal2D);
+	CharMov->SetWallRunFlowingDirection(LateralVector);
+	
+	//DrawDebugLine(GetWorld(), CharMov->GetWallRunLastHitPoint()->ImpactPoint, CharMov->GetWallRunLastHitPoint()->ImpactPoint + CharMov->GetWallRunFlowingDirection() * 100, FColor::Red, true, 30.0f, 0, 3.0f);
+
+}
+
+bool AShooterCharacter::WallRunCalculateNewWallGripPoint(double DeltaTime)
+{
+	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
+	if (!CharMov)
+		return false;
+	
+	FVector NewPlayerSupposedPosition = GetActorLocation() + CharMov->GetWallRunFlowingDirection() * CharMov->WallRunSpeed * DeltaTime;
+	FVector RayDirection = CharMov->GetWallRunLastHitPoint()->ImpactNormal * (-1);
+	float RayLength = GetCapsuleComponent()->GetScaledCapsuleRadius() + CharMov->WallRunMaxWallDetectionDistance;
+	FVector EndRayPoint = NewPlayerSupposedPosition + RayDirection * RayLength;
+
+	///*Collision check must not hit the character itself*/
+	FCollisionQueryParams TraceParams = FCollisionQueryParams(FName(TEXT("WallTrace")), true, this);
+	FHitResult HitDetails = FHitResult(EForceInit::ForceInit);
+	bool bIsHit = GetWorld()->LineTraceSingleByChannel(HitDetails, NewPlayerSupposedPosition, EndRayPoint, ECC_Pawn, TraceParams);
+
+	if (!bIsHit) {
+		UE_LOG(LogTemp, Warning, TEXT("Not hit anything"));
+		return false;
+	}
+
+	if ((CharMov->GetWallRunLastHitPoint()->ImpactPoint - HitDetails.ImpactPoint).Size() < CharMov->WallRunSpeed * DeltaTime /2) {
+		UE_LOG(LogTemp, Warning, TEXT("Stuck in position"));
+		return false;
+	}
+
+	FVector PreviousNormal = CharMov->GetWallRunLastHitPoint()->ImpactNormal;
+	UE_LOG(LogTemp, Warning, TEXT("Yaw difference %f  %f"), PreviousNormal.Rotation().Yaw, HitDetails.ImpactNormal.Rotation().Yaw);
+	//It could result in 359 or similar results without the Min
+	float AngleDifference = FMath::Abs(PreviousNormal.Rotation().Yaw - HitDetails.ImpactNormal.Rotation().Yaw);
+	if (CharMov->WallRunMaxWallAngleVariation < AngleDifference && AngleDifference < 360 - CharMov->WallRunMaxWallAngleVariation) {
+		UE_LOG(LogTemp, Warning, TEXT("Bad Angle difference %f"), FMath::Abs(AngleDifference));
+		UE_LOG(LogTemp, Warning, TEXT("Yaw difference %f  %f"), PreviousNormal.Rotation().Yaw, HitDetails.ImpactNormal.Rotation().Yaw);
+		UE_LOG(LogTemp, Warning, TEXT("Angle difference %f  %f"), FMath::Abs(PreviousNormal.Rotation().Yaw - HitDetails.ImpactNormal.Rotation().Yaw), FMath::Abs(HitDetails.ImpactNormal.Rotation().Yaw - PreviousNormal.Rotation().Yaw));
+
+		return false;
+	}
+
+	DrawDebugLine(GetWorld(), NewPlayerSupposedPosition, NewPlayerSupposedPosition + RayDirection * HitDetails.Distance, FColor::Green, true, 30.0f, 0, 3.0f);
+
+	FVector OldFlowDirection = CharMov->GetWallRunFlowingDirection();
+	FVector NewFlowAxe = FVector::CrossProduct(FVector::UpVector, HitDetails.ImpactNormal);
+	FVector NewFlowDirection = OldFlowDirection.ProjectOnTo(NewFlowAxe).GetSafeNormal2D();
+	CharMov->SetWallRunFlowingDirection(NewFlowDirection);
+	
+	CharMov->SetWallRunLastHitPoint(HitDetails);
+	
+	
+	return true;
+}
+
 
 
 float AShooterCharacter::GetJetpackEnergy() const

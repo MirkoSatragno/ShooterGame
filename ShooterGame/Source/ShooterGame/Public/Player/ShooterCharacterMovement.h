@@ -43,7 +43,13 @@ private:
 	* bWallRunFlowing indicates if the player is performing many chained WallRunning actions,
 	* without touching the floor.*/
 	bool bWallRunFlowing;
+	FHitResult WallRunLastHitPoint;
+	FVector WallRunFlowingDirection;
 	
+
+
+	float WallRunWallCheckCollisionCapsuleHalfHeight = 1;
+	uint8 WallRunWallDetectionRayNumber = 12;
 
 
 	/**
@@ -52,7 +58,8 @@ private:
 	* - the surface is close enough to the player
 	*/
 	bool IsWallInFrontOfPlayerValid() const;
-	bool IsWallNearPlayerValid() const;
+	bool IsWallNearPlayerValid();
+	bool CircleTraceSingleByChannel(struct FHitResult& OutHit, const FVector& Start, const FVector& End, ECollisionChannel TraceChannel, uint8 RaysNumber) const;
 
 public:
 
@@ -89,6 +96,13 @@ public:
 		int32 JetpackRechargeEPS = 10;
 
 
+	
+	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0", ClampMax = "100000"), Category = "WallRun")
+		float WallRunMaxWallDetectionDistance = 50;
+	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0", ClampMax = "100000"), Category = "WallRun")
+		float WallRunMaxWallSlidingDistance = 40;
+	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0", ClampMax = "80"), Category = "WallRun")
+		float WallRunMaxWallAngleVariation = 5;
 	/*Maximum duration od WallRun on the same surface*/
 	UPROPERTY(EditDefaultsOnly, meta = (ClapMin = "0", ClapMax = "1000"), Category = "WallRun")
 		float WallRunMaxDuration = 3;
@@ -96,11 +110,11 @@ public:
 		float WallRunMaxJumpDelay = 1;
 	/*Movement speed while WallRunning*/
 	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0", ClampMax = "100000"), Category = "WallRun")
-		float WallRunSpeed = 200;
+		float WallRunSpeed = 300;
 	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0", ClampMax = "10000000"), Category = "WallRun")
 		float WallRunJumpLateralAcceleration = 30000;
 	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0", ClampMax = "100"), Category = "WallRun")
-		float WallRunJumpVerticalVelocityModifier = 1;
+		float WallRunJumpVerticalVelocityModifier = 2;
 
 
 	virtual float GetMaxSpeed() const override;
@@ -157,7 +171,7 @@ public:
 	bool CanTeleport() const;
 	bool CanWallJump() const;
 	bool CanJetpackSprint() const;
-	bool CanWallRun() const;
+	bool CanWallRun();
 	bool CanStopWallRun() const;
 	bool CanWallRunJump() const;
 
@@ -169,6 +183,10 @@ public:
 	void SetWallRunJumpOnce(bool bWallRunJumpOnce);
 	bool GetWallRunFlowing() const;
 	void SetWallRunFlowing(bool bWallRunFlowing);
+	const FHitResult* GetWallRunLastHitPoint() const;
+	void SetWallRunLastHitPoint(FHitResult WallRunLastHitPoint);
+	FVector GetWallRunFlowingDirection() const;
+	void SetWallRunFlowingDirection(FVector WallRunFlowingDirection);
 
 	void SetMovementMode(EMovementMode NewMovementMode);
 

@@ -61,8 +61,53 @@ bool UShooterCharacterMovement::IsWallInFrontOfPlayerValid() const
 	return false;
 }
 
-bool UShooterCharacterMovement::IsWallNearPlayerValid() const {
-	return IsWallInFrontOfPlayerValid();
+bool UShooterCharacterMovement::IsWallNearPlayerValid()  
+{
+	AShooterCharacter* ShooterCharacter = Cast<AShooterCharacter>(CharacterOwner);
+	if (!ShooterCharacter)
+		return false;
+
+	FVector StartLocation = ShooterCharacter->GetActorLocation();
+	FVector Direction = ShooterCharacter->GetActorRotation().Vector();
+	FVector ForwardRay = Direction  * (ShooterCharacter->GetCapsuleComponent()->GetScaledCapsuleRadius() + WallRunMaxWallDetectionDistance);
+	
+
+	FHitResult HitDetails = FHitResult(EForceInit::ForceInit);
+	bool bIsHit = CircleTraceSingleByChannel(HitDetails, StartLocation, ForwardRay, ECC_Pawn, WallRunWallDetectionRayNumber);
+
+	if (bIsHit) {
+		WallRunLastHitPoint = HitDetails;
+		return true;
+	}
+
+
+	return false;
+}
+
+bool UShooterCharacterMovement::CircleTraceSingleByChannel(struct FHitResult& OutHit, const FVector& Start, const FVector& ForwardRay, ECollisionChannel TraceChannel, uint8 RaysNumber) const
+{
+	AShooterCharacter* ShooterCharacter = Cast<AShooterCharacter>(CharacterOwner);
+	if (!ShooterCharacter)
+		return false;
+
+	///*Collision check must not hit the character itself*/
+	FCollisionQueryParams TraceParams = FCollisionQueryParams(FName(TEXT("WallTrace")), true, ShooterCharacter);
+
+	float MinDist = FLT_MAX;
+	for (int i = 0; i < RaysNumber; i++) {
+		FVector End = Start + ForwardRay.RotateAngleAxis((360 / RaysNumber) * i, FVector::UpVector);
+		FHitResult HitDetails = FHitResult(EForceInit::ForceInit);
+		bool bIsHit = GetWorld()->LineTraceSingleByChannel(HitDetails, Start, End, TraceChannel, TraceParams);
+		if (bIsHit && HitDetails.Distance < MinDist) {
+			OutHit = HitDetails;
+			MinDist = OutHit.Distance;
+		}
+
+
+		//DrawDebugLine(GetWorld(), Start, End, FColor::Red, true, 30.0f, 0, 3.0f);
+	}
+
+	return MinDist != FLT_MAX;
 }
 
 
@@ -264,6 +309,16 @@ void UShooterCharacterMovement::SetCanJetpackSprint(bool bCanJetpackSprint)
 	this->bCanJetpackSprint = bCanJetpackSprint;
 }
 
+bool UShooterCharacterMovement::GetCanWallRun()
+{
+	return bCanWallRun;
+}
+
+void UShooterCharacterMovement::SetCanWallRun(bool bCanWallRun)
+{
+	this->bCanWallRun = bCanWallRun;
+}
+
 
 
 bool UShooterCharacterMovement::CanTeleport() const
@@ -295,23 +350,12 @@ bool UShooterCharacterMovement::CanJetpackSprint() const
 	return 0 < ShooterCharacter->GetJetpackEnergy();
 }
 
-
-bool UShooterCharacterMovement::GetCanWallRun() 
-{
-	return bCanWallRun;
-}
-
-void UShooterCharacterMovement::SetCanWallRun(bool bCanWallRun) 
-{
-	this->bCanWallRun = bCanWallRun;
-}
-
-bool UShooterCharacterMovement::CanWallRun() const
+bool UShooterCharacterMovement::CanWallRun()
 {
 	if (!bCanWallRun)
 		return false;
 
-	return IsFalling();/*&& IsWallNearPlayerValid();*/
+	return IsFalling() && IsWallNearPlayerValid();
 }
 
 bool UShooterCharacterMovement::CanStopWallRun() const
@@ -379,6 +423,25 @@ void UShooterCharacterMovement::SetMovementMode(EMovementMode NewMovementMode)
 	Super::SetMovementMode(NewMovementMode);
 }
 
+const FHitResult* UShooterCharacterMovement::GetWallRunLastHitPoint() const
+{
+	return &WallRunLastHitPoint;
+}
+
+void UShooterCharacterMovement::SetWallRunLastHitPoint(FHitResult WallRunLastHitPoint) 
+{
+	this->WallRunLastHitPoint = WallRunLastHitPoint;
+}
+
+FVector UShooterCharacterMovement::GetWallRunFlowingDirection() const
+{
+	return WallRunFlowingDirection;
+}
+
+void UShooterCharacterMovement::SetWallRunFlowingDirection(FVector WallRunFlowingDirection)
+{
+	this->WallRunFlowingDirection = WallRunFlowingDirection;
+}
 
 bool UShooterCharacterMovement::IsWallRunning()
 {

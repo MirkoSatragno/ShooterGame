@@ -498,6 +498,7 @@ private:
 
 public:
 
+
 	/**
 	* OnRequest function are called when an input event is called by the player.
 	* They simply update movement nd action states.
@@ -528,6 +529,10 @@ public:
 	void WallRunTick(float DeltaTime);
 	void WallRunChangeState();
 	void WallRunJump();
+	void WallRunMoveToNewPosition();
+	void WallRunComputeMovementDirection();
+	bool WallRunCalculateNewWallGripPoint(double DeltaTime);
+	
 
 	/*JetpackEnergy getter*/
 	float GetJetpackEnergy() const;
