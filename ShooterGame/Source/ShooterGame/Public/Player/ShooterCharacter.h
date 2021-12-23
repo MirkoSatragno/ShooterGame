@@ -498,6 +498,7 @@ private:
 
 public:
 
+
 	/**
 	* OnRequest function are called when an input event is called by the player.
 	* They simply update movement nd action states.
@@ -511,6 +512,10 @@ public:
 	void OnRequestStartJetpackSprint();
 	/*Player requests stopping Jetpack action*/
 	void OnRequestStopJetpackSprint();
+	/*Player requests WallRun or WallRunJump action*/
+	void OnRequestWallRunStart();
+	/*Player requests stopping WallRun action*/
+	void OnRequestWallRunStop();
 
 	/*Teleport actor in forward direction*/
 	void Teleport();
@@ -523,6 +528,21 @@ public:
 	void JetpackSprint(float DeltaTime);
 	/*Recharges actor's JetpackEnergy*/
 	void JetpackRecharge(float DeltaTime);
+	/*It constantly manages movements when player is in WallRun flowing mode*/
+	void WallRunTick(float DeltaTime);
+	/*Switch between WallRunning movement mode, and regular movement modes*/
+	void WallRunChangeState();
+	/*Makes actor jump in view direction after a WallRun*/
+	void WallRunJump();
+	/*Performs WallRun actor movement*/
+	void WallRunMoveToNewPosition();
+	/*Computes initial WallRun movement direction*/
+	void WallRunComputeMovementDirection();
+	/*Computes next grip point on a surface for WallRunning*/
+	bool WallRunCalculateNewWallGripPoint(double DeltaTime);
+	/*Sets actor behaviour when the actor detaches from a wall*/
+	void WallRunSetEndingMovement();
+	
 
 	/*JetpackEnergy getter*/
 	float GetJetpackEnergy() const;

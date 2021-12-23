@@ -891,6 +891,8 @@ void AShooterCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerI
 	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &AShooterCharacter::OnRequestWallJump);
 	PlayerInputComponent->BindAction("JetpackSprint", IE_Pressed, this, &AShooterCharacter::OnRequestStartJetpackSprint);
 	PlayerInputComponent->BindAction("JetpackSprint", IE_Released, this, &AShooterCharacter::OnRequestStopJetpackSprint);
+	PlayerInputComponent->BindAction("WallRun", IE_Pressed, this, &AShooterCharacter::OnRequestWallRunStart);
+	PlayerInputComponent->BindAction("WallRun", IE_Released, this, &AShooterCharacter::OnRequestWallRunStop);
 }
 
 
@@ -1340,7 +1342,6 @@ void AShooterCharacter::BuildPauseReplicationCheckPoints(TArray<FVector>& Releva
 //Additional abilities part
 //////////////////////////////
 
-
 void AShooterCharacter::OnRequestTeleport() {
 
 	AShooterPlayerController* MyPC = Cast<AShooterPlayerController>(Controller);
@@ -1373,6 +1374,7 @@ void AShooterCharacter::OnRequestStartJetpackSprint()
 	if (!MyPC || !CharMov)
 		return;
 
+
 	if (MyPC->IsGameInputAllowed() && CharMov->CanJetpackSprint())
 		CharMov->SetTriggeringJetpackSprint(true);
 
@@ -1391,16 +1393,49 @@ void AShooterCharacter::OnRequestStopJetpackSprint()
 
 }
 
+void AShooterCharacter::OnRequestWallRunStart()
+{
+	AShooterPlayerController* MyPC = Cast<AShooterPlayerController>(Controller);
+	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
+
+	if (!MyPC || !CharMov || !MyPC->IsGameInputAllowed())
+		return;
+
+	/*This can trigger both WallRun and WallRunJump actions*/
+
+	if (CharMov->CanWallRunJump()) {
+		CharMov->SetTriggeringWallRunJump(true);
+	}
+	else {
+		if (CharMov->CanWallRun())
+			CharMov->SetTriggeringWallRun(true);
+	}
+
+}
+
+void AShooterCharacter::OnRequestWallRunStop()
+{
+	AShooterPlayerController* MyPC = Cast<AShooterPlayerController>(Controller);
+	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
+
+	if (!MyPC || !CharMov)
+		return;
+
+	/*Before toggling WallRunChangeState I want to be sure that WallRun isn't alredy turned off*/
+	if (MyPC->IsGameInputAllowed() && CharMov->CanStopWallRun()) {
+		CharMov->SetTriggeringWallRun(true);
+	}
+		
+}
+
 ////////////////////////////////////////////////////
 
 void AShooterCharacter::Teleport() {
 
 	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
 
-	if (!CharMov || !CharMov->CanTeleport()) {
-		//UE_LOG(LogTemp, Warning, TEXT("Can't Teleport"));
+	if (!CharMov || !CharMov->CanTeleport())
 		return;
-	}
 
 	FVector OldPosition = GetActorLocation();
 
@@ -1410,7 +1445,7 @@ void AShooterCharacter::Teleport() {
 	* Teleport movement is NOT limited on the z-plane.
 	*/
 	TeleportTo(OldPosition + Controller->GetControlRotation().Vector() * CharMov->TeleportDistance, GetActorRotation());
-
+	
 }
 
 void AShooterCharacter::WallJump()
@@ -1467,6 +1502,202 @@ void AShooterCharacter::JetpackRecharge(float DeltaTime)
 	float NewEnergy = FMath::Min(GetMaxJetpackEnergy(), GetJetpackEnergy() + (float)(CharMov->JetpackRechargeEPS * DeltaTime));
 	SetJetpackEnergy(NewEnergy);
 }
+
+void AShooterCharacter::WallRunTick(float DeltaTime)
+{
+	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
+	if (!CharMov)
+		return;
+
+	
+
+	if (CharMov->IsWallRunning()) {
+		
+		double TimeNow = GetWorld()->TimeSeconds;
+
+		/*I check whether WallRun time limit is over and if another wallgrip point is available*/
+		if (TimeNow < CharMov->GetWallRunMaxEndingTime() && WallRunCalculateNewWallGripPoint(DeltaTime))
+			WallRunMoveToNewPosition();
+		else
+			CharMov->SetTriggeringWallRun(true);
+	}
+	else {
+		/*Here I check when the flow of WallRunning finally ends (usually touching the ground).
+		* This is necessary in order to prevent a wall normal direction check when a new WallRun flow will be started */
+		if (CharMov->GetWallRunFlowing() && !CharMov->IsFalling())
+			CharMov->SetWallRunFlowing(false);
+			
+	}
+	
+}
+
+void AShooterCharacter::WallRunChangeState() {
+
+	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
+	if (!CharMov)
+		return;
+
+	if (!CharMov->IsWallRunning() && !CharMov->CanWallRun())
+		return;
+
+	double TimeNow = GetWorld()->TimeSeconds;
+		
+
+	if (!CharMov->IsWallRunning()) {
+		CharMov->SetWallRunMaxEndingTime(TimeNow + CharMov->WallRunMaxDuration);
+		CharMov->SetMovementMode(MOVE_WallRunning);
+		CharMov->SetWallRunFlowing(true);
+		
+		WallRunComputeMovementDirection();
+		WallRunMoveToNewPosition();
+	}
+	else {
+		CharMov->SetWallRunMaxJumpTime(TimeNow + CharMov->WallRunMaxJumpDelay);
+		CharMov->SetWallRunJumpOnce(true);
+		CharMov->SetMovementMode(MOVE_Falling);
+		WallRunSetEndingMovement();
+
+		/*Note: the movement mode is not MOVE_WallRunning anymore,
+		* but the player is still in the WallRun flow and can jump towards another wall, and so on*/
+	}		
+
+}
+
+void AShooterCharacter::WallRunJump()
+{
+	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
+	if (!CharMov || !CharMov->CanWallRunJump())
+		return;
+
+	/**
+	* When the player stops WallRunning he already has a velocity,
+	* and I want to partially override it with a new acceleration,
+	* in order to provide a better movement control.
+	*/
+
+	CharMov->Velocity.X = 0;
+	CharMov->Velocity.Y = 0;
+	CharMov->Velocity.Z = FMath::Max(CharMov->Velocity.Z, CharMov->JumpZVelocity * CharMov->WallRunJumpVerticalVelocityModifier);
+	CharMov->AddImpulse(GetActorForwardVector() * CharMov->WallRunJumpLateralAcceleration);
+}
+
+void AShooterCharacter::WallRunMoveToNewPosition() 
+{
+	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
+	if (!CharMov)
+		return;
+
+	/*A new grip point on the wall has already been computed,
+	* and the player is simply moved in front of it*/
+
+	FVector NewPosition = CharMov->GetWallRunLastHitPoint()->ImpactPoint + CharMov->GetWallRunLastHitPoint()->ImpactNormal * CharMov->WallRunMaxWallSlidingDistance;
+	TeleportTo(NewPosition, GetActorRotation());
+}
+
+void AShooterCharacter::WallRunComputeMovementDirection()
+{
+	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
+	if (!CharMov)
+		return;
+
+	FVector WallNormal2D = CharMov->GetWallRunLastHitPoint()->ImpactNormal.GetSafeNormal2D();
+	FVector InvertedRay2D = GetActorRotation().Vector().GetSafeNormal2D(); //(GetActorLocation() - CharMov->GetWallRunLastHitPoint()->ImpactPoint).GetSafeNormal2D();
+
+	FVector VerticalVector = FVector::CrossProduct(WallNormal2D, InvertedRay2D).GetSafeNormal();
+	FVector LateralVector = FVector::CrossProduct(VerticalVector, WallNormal2D);
+	CharMov->SetWallRunFlowingDirection(LateralVector);
+
+}
+
+bool AShooterCharacter::WallRunCalculateNewWallGripPoint(double DeltaTime)
+{
+	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
+	if (!CharMov)
+		return false;
+	
+	/*To find next grip point I simulate actor movement according to flow direction,
+	and then I check what's the nearest grip point, if there is any.*/
+
+	FVector NewPlayerSupposedPosition = GetActorLocation() + CharMov->GetWallRunFlowingDirection() * CharMov->WallRunSpeed * DeltaTime;
+	FVector RayDirection = CharMov->GetWallRunLastHitPoint()->ImpactNormal * (-1);
+	float RayLength = GetCapsuleComponent()->GetScaledCapsuleRadius() + CharMov->WallRunMaxWallDetectionDistance;
+	FVector EndRayPoint = NewPlayerSupposedPosition + RayDirection * RayLength;
+
+	/*Collision check must not hit the character itself*/
+	FCollisionQueryParams TraceParams = FCollisionQueryParams(FName(TEXT("WallTrace")), true, this);
+	FHitResult HitDetails = FHitResult(EForceInit::ForceInit);
+	bool bIsHit = GetWorld()->LineTraceSingleByChannel(HitDetails, NewPlayerSupposedPosition, EndRayPoint, ECC_Visibility, TraceParams);
+
+	/* First I check if there is a visible object, 
+	and then I find a grip point onto a collider with a second raycast*/
+
+	if (!bIsHit) {
+		if (GetLocalRole() == ENetRole::ROLE_Authority) {
+			UE_LOG(LogTemp, Warning, TEXT("Server: Not hit anything visible"));
+		}
+		else
+			UE_LOG(LogTemp, Warning, TEXT("Client: Not hit anything visible"));
+		return false;
+	}
+
+	bIsHit = GetWorld()->LineTraceSingleByChannel(HitDetails, NewPlayerSupposedPosition, EndRayPoint, ECC_Pawn, TraceParams);
+
+	if (!bIsHit) {
+		if (GetLocalRole() == ENetRole::ROLE_Authority) {
+			UE_LOG(LogTemp, Warning, TEXT("Server: Not hit anything"));
+		}
+		else
+			UE_LOG(LogTemp, Warning, TEXT("Client: Not hit anything"));
+		return false;
+	}
+
+	/*If, for any reason, the player finds himself not moving fast enough, or even not moving at all
+	I stop WallRun movement state*/
+
+	if ((CharMov->GetWallRunLastHitPoint()->ImpactPoint - HitDetails.ImpactPoint).Size() < CharMov->WallRunSpeed * DeltaTime /2) {
+		if (GetLocalRole() == ENetRole::ROLE_Authority) {
+			UE_LOG(LogTemp, Warning, TEXT("Server: Stuck in position"));
+		}
+		else
+			UE_LOG(LogTemp, Warning, TEXT("Client: Stuck in position"));
+		return false;
+	}
+
+	/*If I'm already performing WallRunning, I want to be sure that the new grip point wall normal
+	* isn't too different from the previous one. Otherwise, it will be considered a different surface*/
+	float AngleDifference = FMath::Abs(CharMov->GetWallRunLastHitPoint()->ImpactNormal.Rotation().Yaw - HitDetails.ImpactNormal.Rotation().Yaw);
+	if (CharMov->WallRunMaxWallAngleVariation < AngleDifference && AngleDifference < 360 - CharMov->WallRunMaxWallAngleVariation) {
+		if (GetLocalRole() == ENetRole::ROLE_Authority) {
+			UE_LOG(LogTemp, Warning, TEXT("Server: Bad Angle difference %f"), FMath::Abs(AngleDifference));
+		}
+		else
+			UE_LOG(LogTemp, Warning, TEXT("Client: Bad Angle difference %f"), FMath::Abs(AngleDifference));
+		return false;
+	}
+
+
+	/*New instantaneous flow direction must be orthogonal to the new grip point normal*/
+	FVector OldFlowDirection = CharMov->GetWallRunFlowingDirection();
+	FVector NewFlowAxe = FVector::CrossProduct(FVector::UpVector, HitDetails.ImpactNormal);
+	FVector NewFlowDirection = OldFlowDirection.ProjectOnTo(NewFlowAxe).GetSafeNormal2D();
+	CharMov->SetWallRunFlowingDirection(NewFlowDirection);
+	
+	CharMov->SetWallRunLastHitPoint(HitDetails);
+	
+	
+	return true;
+}
+
+void AShooterCharacter::WallRunSetEndingMovement()
+{
+	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
+	if (!CharMov)
+		return;
+	/*When the WallRun ends, for any reason, the player will still have a residual velocity*/
+
+	CharMov->Velocity = CharMov->GetWallRunFlowingDirection() * CharMov->WallRunSpeed;
+}
+
 
 
 float AShooterCharacter::GetJetpackEnergy() const
