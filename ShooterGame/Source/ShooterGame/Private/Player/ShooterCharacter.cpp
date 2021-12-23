@@ -1434,10 +1434,8 @@ void AShooterCharacter::Teleport() {
 
 	UShooterCharacterMovement* CharMov = Cast<UShooterCharacterMovement>(GetMovementComponent());
 
-	if (!CharMov || !CharMov->CanTeleport()) {
-		//UE_LOG(LogTemp, Warning, TEXT("Can't Teleport"));
+	if (!CharMov || !CharMov->CanTeleport())
 		return;
-	}
 
 	FVector OldPosition = GetActorLocation();
 
@@ -1632,7 +1630,6 @@ bool AShooterCharacter::WallRunCalculateNewWallGripPoint(double DeltaTime)
 
 	/* First I check if there is a visible object, 
 	and then I find a grip point onto a collider with a second raycast*/
-	DrawDebugLine(GetWorld(), NewPlayerSupposedPosition, EndRayPoint, FColor::Red, true, 30.0f, 0, 3.0f);
 
 	if (!bIsHit) {
 		if (GetLocalRole() == ENetRole::ROLE_Authority) {

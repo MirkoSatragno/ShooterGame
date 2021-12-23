@@ -217,11 +217,8 @@ void UShooterCharacterMovement::UpdateFromCompressedFlags(uint8 Flags) {
 
 		bTriggeringJetpackSprint = (Jetpack_WallRunJumpFlag && !WallRunFlag);
 
-		if (WallRunFlag && !Jetpack_WallRunJumpFlag) {
-			/*if (ShooterCharacter->GetLocalRole())
-				UE_LOG(LogTemp, Warning, TEXT("Server update from flags WallRun"));*/
+		if (WallRunFlag && !Jetpack_WallRunJumpFlag)
 			ShooterCharacter->WallRunChangeState();
-		}
 			
 		if (WallRunFlag && Jetpack_WallRunJumpFlag) {
 			ShooterCharacter->WallRunJump();
