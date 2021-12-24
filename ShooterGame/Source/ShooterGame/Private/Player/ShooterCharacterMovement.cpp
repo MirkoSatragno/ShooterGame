@@ -61,7 +61,7 @@ bool UShooterCharacterMovement::IsWallInFrontOfPlayerValid() const
 	return false;
 }
 
-bool UShooterCharacterMovement::IsWallNearPlayerValid()  
+bool UShooterCharacterMovement::IsWallNearPlayerValid(bool bSetGripPoint)
 {
 	AShooterCharacter* ShooterCharacter = Cast<AShooterCharacter>(CharacterOwner);
 	if (!ShooterCharacter)
@@ -80,6 +80,7 @@ bool UShooterCharacterMovement::IsWallNearPlayerValid()
 		return false;
 
 	if (GetWallRunFlowing()) {
+
 		/**
 		* If I'm jumping on a new surface while I'm still WallRunning,
 		* I want to be sure that its normal is different enough from previous wall last grip point normal,
@@ -89,11 +90,14 @@ bool UShooterCharacterMovement::IsWallNearPlayerValid()
 		FVector OldNormal = GetWallRunLastHitPoint()->ImpactNormal;
 
 		float AngleDifference = FMath::Abs(NewNormal.Rotation().Yaw - OldNormal.Rotation().Yaw);
-		if (AngleDifference < WallRunMaxWallAngleVariation || 360 - WallRunMaxWallAngleVariation < AngleDifference)
+		if (AngleDifference < WallRunMaxWallAngleVariation || 360 - WallRunMaxWallAngleVariation < AngleDifference) {			
 			return false;
+		}
+			
 	}
 
-	WallRunLastHitPoint = HitDetails;
+	if(bSetGripPoint)
+		WallRunLastHitPoint = HitDetails;
 
 	return true;
 }
@@ -217,8 +221,10 @@ void UShooterCharacterMovement::UpdateFromCompressedFlags(uint8 Flags) {
 
 		bTriggeringJetpackSprint = (Jetpack_WallRunJumpFlag && !WallRunFlag);
 
-		if (WallRunFlag && !Jetpack_WallRunJumpFlag)
+		if (WallRunFlag && !Jetpack_WallRunJumpFlag) {
 			ShooterCharacter->WallRunChangeState();
+		}
+			
 			
 		if (WallRunFlag && Jetpack_WallRunJumpFlag) {
 			ShooterCharacter->WallRunJump();
@@ -400,12 +406,12 @@ bool UShooterCharacterMovement::CanJetpackSprint() const
 	return 0 < ShooterCharacter->GetJetpackEnergy() && !IsWallRunning();
 }
 
-bool UShooterCharacterMovement::CanWallRun()
+bool UShooterCharacterMovement::CanWallRun(bool bSetGripPoint)
 {
 	if (!bCanWallRun)
 		return false;
 
-	return IsFalling() && IsWallNearPlayerValid();
+	return IsFalling() && IsWallNearPlayerValid(bSetGripPoint);
 }
 
 bool UShooterCharacterMovement::CanStopWallRun() const

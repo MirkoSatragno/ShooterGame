@@ -72,7 +72,7 @@ private:
 	* - the player is near a colliding object too (it can be the same)
 	* - in case the player is already WallRunning, we check normal orientation of consecutive grip points on the wall
 	*/
-	bool IsWallNearPlayerValid();
+	bool IsWallNearPlayerValid(bool bSetGripPoint);
 	/**
 	* This is a custom version of the LineTraceSingleByChannel.
 	* It casts RaysNumber rays around the player, all laying on the same XY-plane.
@@ -208,7 +208,7 @@ public:
 	/*JetpackSprint action current availability*/
 	bool CanJetpackSprint() const;
 	/*WallRun action start current availability*/
-	bool CanWallRun();
+	bool CanWallRun(bool bSetGripPoint);
 	/*WallRun action stop current availability*/
 	bool CanStopWallRun() const;
 	/*WallRunJump action current availability*/

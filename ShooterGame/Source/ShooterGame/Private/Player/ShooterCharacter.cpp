@@ -1407,7 +1407,7 @@ void AShooterCharacter::OnRequestWallRunStart()
 		CharMov->SetTriggeringWallRunJump(true);
 	}
 	else {
-		if (CharMov->CanWallRun())
+		if (CharMov->CanWallRun(false))
 			CharMov->SetTriggeringWallRun(true);
 	}
 
@@ -1519,7 +1519,7 @@ void AShooterCharacter::WallRunTick(float DeltaTime)
 		if (TimeNow < CharMov->GetWallRunMaxEndingTime() && WallRunCalculateNewWallGripPoint(DeltaTime))
 			WallRunMoveToNewPosition();
 		else
-			CharMov->SetTriggeringWallRun(true);
+			WallRunChangeState();
 	}
 	else {
 		/*Here I check when the flow of WallRunning finally ends (usually touching the ground).
@@ -1537,8 +1537,10 @@ void AShooterCharacter::WallRunChangeState() {
 	if (!CharMov)
 		return;
 
-	if (!CharMov->IsWallRunning() && !CharMov->CanWallRun())
+	if (!CharMov->IsWallRunning() && !CharMov->CanWallRun(true)) {
 		return;
+	}
+		
 
 	double TimeNow = GetWorld()->TimeSeconds;
 		
